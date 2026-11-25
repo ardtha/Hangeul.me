@@ -94,10 +94,10 @@ test('module access respects Free and Pro tiers', () => {
   assert.equal(canAccessModule(proMod, true), true);
 });
 
-test('expanded Korean dictionary contains 450+ entries across 30+ categories', () => {
-  assert.ok(ALL_CARDS.length >= 450, `Expected >= 450 cards, got ${ALL_CARDS.length}`);
+test('expanded Korean dictionary contains 700+ entries across 35+ categories', () => {
+  assert.ok(ALL_CARDS.length >= 650, `Expected >= 650 base cards, got ${ALL_CARDS.length}`);
   const categories = new Set(ALL_CARDS.map((c) => c.type));
-  assert.ok(categories.size >= 28, `Expected >= 28 categories, got ${categories.size}`);
+  assert.ok(categories.size >= 35, `Expected >= 35 categories, got ${categories.size}`);
   for (const mod of CURRICULUM_MODULES) {
     assert.ok(mod.cards.length > 0, `Module ${mod.id} should not be empty`);
   }

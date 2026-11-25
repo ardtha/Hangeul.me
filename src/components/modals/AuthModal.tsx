@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { KeyRound, Lock, UserPlus, X } from 'lucide-react';
-import type { AuthUser, UserProgressSnapshot } from '../lib/gameRules';
+import type { AuthUser, UserProgressSnapshot } from '../../lib/gameRules';
 
 export type AuthModalTab = 'login' | 'register';
 

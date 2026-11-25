@@ -1,10 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Volume2 } from 'lucide-react';
-import { LETTER_CARDS, type FlashcardItem } from '../data/hangeulData';
-import { speakKorean } from '../lib/speech';
+import { LETTER_CARDS, type FlashcardItem } from '../../data/hangeulData';
+import { speakKorean } from '../../lib/speech';
 
 const SOUNDBOARD_GROUPS = [
-  'Semua',
   'Konsonan Dasar',
   'Konsonan Aspirasi',
   'Konsonan Kembar',
@@ -24,10 +23,10 @@ export const HangeulSoundboard: React.FC<HangeulSoundboardProps> = ({
   const [soundGroup, setSoundGroup] = useState<SoundboardGroup>('Konsonan Dasar');
   const [activeLetter, setActiveLetter] = useState<FlashcardItem>(LETTER_CARDS[0]);
 
-  const visibleLetters = useMemo(() => {
-    if (soundGroup === 'Semua') return LETTER_CARDS;
-    return LETTER_CARDS.filter((card) => card.type === soundGroup);
-  }, [soundGroup]);
+  const visibleLetters = useMemo(
+    () => LETTER_CARDS.filter((card) => card.type === soundGroup),
+    [soundGroup]
+  );
 
   return (
     <section
@@ -51,7 +50,7 @@ export const HangeulSoundboard: React.FC<HangeulSoundboardProps> = ({
         <div
           role="group"
           aria-label="Filter kelompok huruf"
-          className="inline-flex flex-nowrap items-center gap-1 p-1 rounded-2xl bg-white/45 dark:bg-white/10 backdrop-blur-md border border-white/70 dark:border-white/12 overflow-x-auto max-w-full"
+          className="inline-flex flex-wrap items-center gap-1 p-1 rounded-2xl bg-white/45 dark:bg-white/10 backdrop-blur-md border border-white/70 dark:border-white/12 max-w-full"
         >
           {SOUNDBOARD_GROUPS.map((grp) => (
             <button

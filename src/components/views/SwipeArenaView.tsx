@@ -17,23 +17,23 @@ import {
   extractWritingGlyphsFromText,
   type CurriculumModule,
   type FlashcardItem,
-} from '../data/hangeulData';
+} from '../../data/hangeulData';
 import {
   applySwipeAnswer,
   recycleWeakCard,
   shuffleArray,
   type SwipeSessionState,
-} from '../lib/gameRules';
-import { ChallengeSummaryModal, type ChallengeSummary } from './exercises/ChallengeSummaryModal';
-import { MatchPairsDrill } from './exercises/MatchPairsDrill';
-import { ParticleFillDrill } from './exercises/ParticleFillDrill';
-import { QuizDrill } from './exercises/QuizDrill';
-import { SentenceScrambleDrill } from './exercises/SentenceScrambleDrill';
-import { SessionStatsSidebar } from './exercises/SessionStatsSidebar';
-import { SwipeCardDrill } from './exercises/SwipeCardDrill';
-import { SyllableBuilderDrill } from './exercises/SyllableBuilderDrill';
-import { WritingCanvasDrill } from './exercises/WritingCanvasDrill';
-import type { PaywallReason } from './PaywallModal';
+} from '../../lib/gameRules';
+import { ChallengeSummaryModal, type ChallengeSummary } from '../exercises/ChallengeSummaryModal';
+import { MatchPairsDrill } from '../exercises/MatchPairsDrill';
+import { ParticleFillDrill } from '../exercises/ParticleFillDrill';
+import { QuizDrill } from '../exercises/QuizDrill';
+import { SentenceScrambleDrill } from '../exercises/SentenceScrambleDrill';
+import { SessionStatsSidebar } from '../exercises/SessionStatsSidebar';
+import { SwipeCardDrill } from '../exercises/SwipeCardDrill';
+import { SyllableBuilderDrill } from '../exercises/SyllableBuilderDrill';
+import { WritingCanvasDrill } from '../exercises/WritingCanvasDrill';
+import type { PaywallReason } from '../modals/PaywallModal';
 
 export type PracticeStudioTab =
   | 'quiz'

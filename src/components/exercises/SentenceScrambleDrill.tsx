@@ -3,7 +3,7 @@ import { ArrowRight, CheckCircle2, Lock, MessageSquareText, RotateCcw, Volume2, 
 import { SENTENCE_PUZZLES } from '../../data/hangeulData';
 import { checkSentenceOrder } from '../../lib/gameRules';
 import { canSpeakKorean, speakKorean } from '../../lib/speech';
-import type { PaywallReason } from '../PaywallModal';
+import type { PaywallReason } from '../modals/PaywallModal';
 
 interface SentenceScrambleDrillProps {
   isPro: boolean;

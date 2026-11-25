@@ -1,12 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Lock, MessageCircle, Search, Star, Volume2, X } from 'lucide-react';
 import {
   FULL_DICTIONARY_CARDS,
   getCardExampleSentence,
   type FlashcardItem,
-} from '../data/hangeulData';
-import { speakKorean } from '../lib/speech';
-import type { PaywallReason } from './PaywallModal';
+} from '../../data/hangeulData';
+import { speakKorean } from '../../lib/speech';
+import type { PaywallReason } from '../modals/PaywallModal';
 
 interface DictionaryViewProps {
   isPro: boolean;
@@ -26,6 +26,24 @@ export const DictionaryView: React.FC<DictionaryViewProps> = ({
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [spotlightCard, setSpotlightCard] = useState<FlashcardItem | null>(null);
+  const categoryBarRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = categoryBarRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return;
+      if (e.deltaY !== 0 || e.deltaX !== 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        el.scrollLeft += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
 
   const combinedCatalog = FULL_DICTIONARY_CARDS;
   const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
@@ -92,7 +110,10 @@ export const DictionaryView: React.FC<DictionaryViewProps> = ({
       </div>
 
       {/* Category Filter Buttons */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+      <div
+        ref={categoryBarRef}
+        className="no-scrollbar overscroll-contain flex items-center gap-1.5 overflow-x-auto pb-1"
+      >
         {categories.map((cat) => {
           const isFavTab = cat === 'Favorit';
           const active = selectedCategory === cat;

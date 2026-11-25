@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BookOpen, Volume2, X } from 'lucide-react';
-import { BATCHIM_GUIDE_SECTIONS } from '../data/hangeulData';
-import { speakKorean } from '../lib/speech';
+import { BATCHIM_GUIDE_SECTIONS } from '../../data/hangeulData';
+import { speakKorean } from '../../lib/speech';
 
 interface BatchimGuideModalProps {
   open: boolean;

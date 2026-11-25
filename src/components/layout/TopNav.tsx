@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LogIn, LogOut, Menu, X } from 'lucide-react';
-import type { AuthUser } from '../lib/gameRules';
+import type { AuthUser } from '../../lib/gameRules';
 
 export type AppTab = 'learn' | 'arena' | 'dictionary' | 'leaderboard' | 'business';
 

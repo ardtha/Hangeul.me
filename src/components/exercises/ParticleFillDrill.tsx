@@ -3,7 +3,7 @@ import { ArrowRight, CheckCircle2, Lock, Sparkles, Volume2, XCircle } from 'luci
 import { PARTICLE_PUZZLES, type ParticlePuzzle } from '../../data/hangeulData';
 import { checkParticleAnswer } from '../../lib/gameRules';
 import { canSpeakKorean, speakKorean } from '../../lib/speech';
-import type { PaywallReason } from '../PaywallModal';
+import type { PaywallReason } from '../modals/PaywallModal';
 
 interface ParticleFillDrillProps {
   isPro: boolean;

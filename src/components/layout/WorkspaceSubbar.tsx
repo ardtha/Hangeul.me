@@ -1,6 +1,6 @@
 import React from 'react';
 import { Award, Flame, Moon, Snowflake, Sun } from 'lucide-react';
-import { calculateLearnerLevel, type AuthUser } from '../lib/gameRules';
+import { calculateLearnerLevel, type AuthUser } from '../../lib/gameRules';
 
 interface WorkspaceSubbarProps {
   isPro: boolean;

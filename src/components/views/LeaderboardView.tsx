@@ -4,7 +4,7 @@ import {
   buildLeaderboardRows,
   type AuthUser,
   type LeaderboardEntry,
-} from '../lib/gameRules';
+} from '../../lib/gameRules';
 
 interface LeaderboardViewProps {
   currentUser: AuthUser | null;

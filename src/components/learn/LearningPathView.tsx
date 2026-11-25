@@ -10,13 +10,13 @@ import {
   Sparkles,
   Target,
 } from 'lucide-react';
-import type { CurriculumModule } from '../data/hangeulData';
-import type { DailyQuestRecord } from '../hooks/useLearningStore';
-import { calculateLearnerLevel, evaluateDailyQuests } from '../lib/gameRules';
+import type { CurriculumModule } from '../../data/hangeulData';
+import type { DailyQuestRecord } from '../../hooks/useLearningStore';
+import { calculateLearnerLevel, evaluateDailyQuests } from '../../lib/gameRules';
 import { CurriculumGrid } from './CurriculumGrid';
 import { HangeulSoundboard } from './HangeulSoundboard';
-import type { PaywallReason } from './PaywallModal';
-import type { PracticeStudioTab } from './SwipeArenaView';
+import type { PaywallReason } from '../modals/PaywallModal';
+import type { PracticeStudioTab } from '../views/SwipeArenaView';
 
 interface LearningPathViewProps {
   isPro: boolean;

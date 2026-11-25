@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { AuthModal, type AuthModalTab } from './components/AuthModal';
-import { BatchimGuideModal } from './components/BatchimGuideModal';
-import { BusinessProView } from './components/BusinessProView';
-import { DictionaryView } from './components/DictionaryView';
-import { LeaderboardView } from './components/LeaderboardView';
-import { LearningPathView } from './components/LearningPathView';
-import { PaywallModal, type PaywallReason } from './components/PaywallModal';
-import { SwipeArenaView, type PracticeStudioTab } from './components/SwipeArenaView';
-import { TopNav, type AppTab } from './components/TopNav';
-import { WorkspaceSubbar } from './components/WorkspaceSubbar';
+import { Footer } from './components/layout/Footer';
+import { TopNav, type AppTab } from './components/layout/TopNav';
+import { WorkspaceSubbar } from './components/layout/WorkspaceSubbar';
+import { LearningPathView } from './components/learn/LearningPathView';
+import { AuthModal, type AuthModalTab } from './components/modals/AuthModal';
+import { BatchimGuideModal } from './components/modals/BatchimGuideModal';
+import { PaywallModal, type PaywallReason } from './components/modals/PaywallModal';
+import { BusinessProView } from './components/views/BusinessProView';
+import { DictionaryView } from './components/views/DictionaryView';
+import { LeaderboardView } from './components/views/LeaderboardView';
+import { SwipeArenaView, type PracticeStudioTab } from './components/views/SwipeArenaView';
 import type { CurriculumModule } from './data/hangeulData';
 import { useAuthSession } from './hooks/useAuthSession';
 import { useLearningStore } from './hooks/useLearningStore';
@@ -220,55 +221,7 @@ export default function App() {
         )}
       </main>
 
-      <footer className="no-print border-t border-white/60 dark:border-white/10 bg-white/55 dark:bg-slate-950/55 backdrop-blur-2xl backdrop-saturate-150">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
-          <div>Hangeul.me — Website Belajar Bahasa Korea (Tersedia versi Python)</div>
-          <div className="flex flex-wrap items-center gap-5">
-            <button
-              type="button"
-              onClick={() => setActiveTab('learn')}
-              className="hover:text-slate-900 dark:hover:text-slate-200"
-            >
-              Kurikulum
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('arena')}
-              className="hover:text-slate-900 dark:hover:text-slate-200"
-            >
-              Latihan Seru
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('dictionary')}
-              className="hover:text-slate-900 dark:hover:text-slate-200"
-            >
-              Kamus
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('leaderboard')}
-              className="hover:text-slate-900 dark:hover:text-slate-200"
-            >
-              Peringkat
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('business')}
-              className="hover:text-slate-900 dark:hover:text-slate-200"
-            >
-              Bisnis &amp; Pro
-            </button>
-            <a
-              href="/hangeul_me.py"
-              download="hangeul_me.py"
-              className="font-semibold text-sky-600 dark:text-sky-400 hover:underline"
-            >
-              Unduh Kode Python (.py)
-            </a>
-          </div>
-        </div>
-      </footer>
+      <Footer onSelectTab={setActiveTab} />
 
       <BatchimGuideModal
         open={batchimGuideOpen}

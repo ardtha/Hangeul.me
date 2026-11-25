@@ -93,10 +93,29 @@ export function getCardExampleSentence(item: FlashcardItem): DictionaryExampleSe
         indonesian: `Menyatakan sifat atau perasaan: "${item.m}".`,
       };
     case 'Kerja & EPS-TOPIK':
+    case 'Kantor & Bisnis':
       return {
         korean: `직장에서 ${item.h} 표현을 자주 써요.`,
         roman: `Jik-jang-e-seo ${item.c} pyo-hyeo-neul ja-ju sseo-yo.`,
         indonesian: `Istilah "${item.m}" sering dipakai di lingkungan kerja Korea.`,
+      };
+    case 'Kafe & Dessert':
+      return {
+        korean: `카페에서 ${item.h} 하나 주문했어요.`,
+        roman: `Ka-pe-e-seo ${item.c} ha-na ju-mun-hae-sseo-yo.`,
+        indonesian: `Saya memesan satu ${item.m.toLowerCase()} di kafe.`,
+      };
+    case 'Perjalanan & Hotel':
+      return {
+        korean: `여행할 때 ${item.h}이/가 꼭 필요해요.`,
+        roman: `Yeo-haeng-hal ttae ${item.c} i/ga kkok pi-ryo-hae-yo.`,
+        indonesian: `Saat bepergian ke Korea, ${item.m.toLowerCase()} sangat diperlukan.`,
+      };
+    case 'Musik & K-Pop':
+      return {
+        korean: `좋아하는 가수의 ${item.h}이/가 정말 멋져요!`,
+        roman: `Jo-a-ha-neun ga-su-ui ${item.c} jeong-mal meot-jyeo-yo!`,
+        indonesian: `${item.m} dari penyanyi favorit benar-benar keren!`,
       };
     default:
       return {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { BookOpen, Check, Flame, Layers, Snowflake, Sparkles } from 'lucide-react';
-import { formatIdr } from '../lib/gameRules';
+import { formatIdr } from '../../lib/gameRules';
 
 interface BusinessProViewProps {
   isPro: boolean;

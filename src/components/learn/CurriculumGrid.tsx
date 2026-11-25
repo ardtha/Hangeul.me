@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Lock, Play } from 'lucide-react';
-import { CURRICULUM_MODULES, type CurriculumModule } from '../data/hangeulData';
-import { canAccessModule } from '../lib/gameRules';
-import type { PaywallReason } from './PaywallModal';
+import { CURRICULUM_MODULES, type CurriculumModule } from '../../data/hangeulData';
+import { canAccessModule } from '../../lib/gameRules';
+import type { PaywallReason } from '../modals/PaywallModal';
 
 const MODULE_ACCENTS = [
   {

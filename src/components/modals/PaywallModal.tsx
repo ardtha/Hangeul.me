@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BookOpen, Check, Lock, Snowflake, X } from 'lucide-react';
-import { formatIdr } from '../lib/gameRules';
+import { formatIdr } from '../../lib/gameRules';
 
 export type PaywallReason = 'module' | 'general';
 
