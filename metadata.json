@@ -1,0 +1,6 @@
+{
+  "name": "Hangeul.me",
+  "description": "Platform belajar bahasa Korea interaktif dengan modul eksklusif, mode offline PWA, dan sertifikat kompetensi resmi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

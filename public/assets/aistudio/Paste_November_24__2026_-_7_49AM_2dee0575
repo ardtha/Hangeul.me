@@ -1,0 +1,470 @@
+import http.server
+import socketserver
+import webbrowser
+import os
+
+PORT = 8000
+
+HTML_CONTENT = '''<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Hangeul.me (Python Edition)</title>
+<style>
+:root{--red:#cd2e3b;--blue:#0047A0;--gray:#F4F5F7;--bg:#F8F9FA;--card:#fff;--tx:#111;--sub:#555;--hint:#8a8a8a;--bm:#111;--bmt:#fff;--sh:0 15px 35px rgba(0,0,0,.06);--bd:rgba(0,0,0,.06)}
+:root[data-theme=dark]{--bg:#121212;--card:#1E1E1E;--tx:#fff;--sub:#bbb;--hint:#888;--gray:#2A2A2A;--bm:#fff;--bmt:#111;--sh:0 15px 35px rgba(0,0,0,.3);--bd:rgba(255,255,255,.1);--blue:#5b9bff}
+*{box-sizing:border-box;margin:0;padding:0;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--tx);display:flex;flex-direction:column;overflow:hidden;position:relative;transition:background .3s}
+#orbs{position:absolute;inset:0;z-index:1;pointer-events:none}
+.orb{position:absolute;left:0;top:0;border-radius:50%;opacity:.5;filter:blur(4px)}
+header{padding:calc(14px + env(safe-area-inset-top,0px)) 16px 6px;display:flex;justify-content:space-between;align-items:center;z-index:10;gap:8px}
+.hl,.hr{display:flex;align-items:center;gap:8px}
+.title{font-size:15px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+.pill{font-size:11px;font-weight:700;background:var(--card);border:1px solid var(--bd);padding:8px 12px;border-radius:30px;color:var(--tx);cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.05);letter-spacing:.5px;white-space:nowrap}
+.pill.dark{background:var(--bm);color:var(--bmt)}
+.pill.on{background:var(--red);color:#fff;border-color:var(--red)}
+.round{width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;font-size:14px}
+#score{color:var(--blue);font-size:13px}
+.stats{display:flex;justify-content:center;gap:8px;padding:4px 16px;z-index:10;flex-wrap:wrap}
+.stat{font-size:11px;font-weight:700;color:var(--sub);background:var(--card);border:1px solid var(--bd);border-radius:30px;padding:6px 10px}
+.stat b{color:var(--tx)}
+#combo.hot{background:linear-gradient(90deg,#ff7a18,#cd2e3b);color:#fff;border-color:transparent}
+#combo.hot b{color:#fff}
+#timer.low{background:var(--red);color:#fff}
+#timer.low b{color:#fff}
+.game{flex:1;display:flex;flex-direction:column;justify-content:space-between;align-items:center;width:100%;max-width:380px;margin:0 auto;padding:8px 20px;z-index:5;min-height:0}
+.opts{width:100%;display:flex;gap:12px}
+.opt{flex:1;font-size:14px;font-weight:700;color:#fff;padding:12px 8px;border-radius:14px;text-align:center;box-shadow:0 6px 15px rgba(0,0,0,.1);transition:transform .3s;text-transform:uppercase;letter-spacing:.5px}
+#oL{background:var(--red)}#oR{background:var(--blue)}
+.zone{position:relative;width:100%;flex:1;display:flex;justify-content:center;align-items:center;min-height:240px;margin:10px 0}
+.card{width:85%;max-width:280px;height:90%;max-height:340px;min-height:230px;background:var(--card);border-radius:24px;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:grab;position:absolute;box-shadow:var(--sh);border:1px solid var(--bd);touch-action:none;padding:20px;text-align:center}
+.card.weak{border-color:var(--red);box-shadow:0 0 0 2px rgba(205,46,59,.25),var(--sh)}
+.char{font-size:70px;font-weight:700;line-height:1.1}
+.wk{font-size:11px;font-weight:700;color:var(--red);margin:8px 0;min-height:16px;letter-spacing:.5px}
+.badge{font-size:10px;color:var(--sub);background:var(--gray);padding:6px 12px;border-radius:30px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+#toast{min-height:22px;font-size:13px;font-weight:700;text-align:center;z-index:6;transition:opacity .2s}
+#toast.ok{color:#2e9e5b}#toast.no{color:var(--red)}
+.hintrow{font-size:11px;color:var(--hint);display:flex;gap:8px;margin-bottom:6px}
+footer{padding:8px 16px calc(14px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;gap:10px;z-index:10}
+.btn{background:var(--card);color:var(--tx);border:1px solid var(--bd);padding:12px 20px;border-radius:30px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,.05);flex:1;max-width:170px}
+#flash{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:0;transition:opacity .2s}
+.fok{background:radial-gradient(circle,rgba(46,204,113,.22),transparent 70%)}
+.fno{background:radial-gradient(circle,rgba(231,76,60,.22),transparent 70%)}
+.ov{position:fixed;inset:0;background:rgba(17,17,17,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:100;display:flex;justify-content:center;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .3s}
+.ov.center{align-items:center}
+.ov.active{opacity:1;pointer-events:auto}
+.sheet{width:100%;max-width:500px;background:var(--card);border-radius:28px 28px 0 0;display:flex;flex-direction:column;overflow:hidden;transform:translateY(100%);transition:transform .3s cubic-bezier(.16,1,.3,1);height:85%}
+.ov.center .sheet{height:auto;border-radius:28px;max-width:340px;padding:28px 22px;transform:scale(.9);text-align:center}
+.ov.active .sheet{transform:none}
+.mh{padding:18px 20px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:18px}
+.x{background:var(--gray);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;color:var(--sub);cursor:pointer}
+.mb{flex:1;overflow-y:auto;padding:6px 20px 30px}
+.st{font-size:11px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:1px;margin:18px 0 10px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.di{background:var(--gray);border-radius:14px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;border:2px solid transparent}
+.di.weak{border-color:var(--red)}
+.dh{font-size:24px;font-weight:700}.da{font-size:12px;font-weight:600;color:var(--blue);margin-top:1px}.dm{font-size:10px;color:var(--sub);margin-top:2px;text-align:center}
+.big{font-size:44px;font-weight:800;color:var(--blue);margin:6px 0}
+.res{font-size:13px;color:var(--sub);line-height:1.8;margin-bottom:16px}
+.res b{color:var(--tx)}
+#dictQ{width:100%;padding:12px 16px;border-radius:30px;border:1px solid var(--bd);background:var(--gray);color:var(--tx);font-size:14px;outline:none;user-select:text;-webkit-user-select:text}
+.di{cursor:pointer}
+button,input{font-family:inherit}
+button{transition:transform .15s,background .2s}
+button:active{transform:scale(.96)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.stats{gap:6px}.stat{font-size:10px;padding:5px 9px}
+footer{max-width:420px;margin:0 auto;width:100%;gap:8px}
+.btn{max-width:none;white-space:nowrap;padding:12px 6px;font-size:12.5px}
+.opt{display:flex;align-items:center;justify-content:center;min-height:50px;font-size:15px;overflow-wrap:anywhere}
+#oL::before{content:"\\2190  ";opacity:.7}#oR::after{content:"  \\2192";opacity:.7}
+.card{background:linear-gradient(160deg,var(--card),var(--gray));transition:border-color .15s}
+.zone::before{content:"";position:absolute;width:78%;max-width:250px;height:86%;max-height:320px;min-height:200px;background:var(--card);border:1px solid var(--bd);border-radius:24px;transform:translateY(12px) scale(.96);opacity:.6}
+.hintrow{opacity:.8}
+.ov:not(.center) .sheet::before{content:"";width:40px;height:4px;border-radius:4px;background:var(--hint);opacity:.4;align-self:center;margin:8px 0 0;flex:none}
+.grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.st{position:sticky;top:0;background:var(--card);padding:8px 0;margin:10px 0 8px;z-index:2}
+.dh{font-size:22px;text-align:center;overflow-wrap:anywhere}.da,.dm{text-align:center;overflow-wrap:anywhere}
+.di{transition:transform .15s}.di:active{transform:scale(.97)}
+#chips{display:flex;gap:6px;overflow-x:auto;padding:10px 20px 4px;scrollbar-width:none;flex:none}
+#chips::-webkit-scrollbar{display:none}
+.chip{flex:none;font-size:11px;font-weight:700;padding:6px 12px;border-radius:30px;border:1px solid var(--bd);background:var(--gray);color:var(--sub);cursor:pointer;white-space:nowrap}
+.chip:active{background:var(--blue);color:#fff}
+@media(max-width:420px){.title{font-size:13px}.pill{padding:7px 10px;font-size:10px}.hl,.hr{gap:6px}}
+@media(max-height:700px){.zone{min-height:190px}.card{min-height:190px}.opt{min-height:44px}}
+:root{--bg:#f5f3ef;--opt-r:#d4313f;--opt-b:#1d4fb3;--glow:rgba(29,79,179,.14)}
+:root[data-theme=dark]{--bg:#0e0f13;--card:#1a1c23;--gray:#252832;--opt-r:#e0414f;--opt-b:#2c63d6;--bd:rgba(255,255,255,.09);--glow:rgba(91,155,255,.14)}
+body{background:radial-gradient(120% 55% at 50% -8%,var(--glow),transparent 60%),var(--bg)}
+.orb{opacity:.25;filter:blur(8px)}
+.title{display:flex;align-items:center;gap:9px;font-size:17px;letter-spacing:.2px;text-transform:none}
+.logo{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-size:16px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--opt-r) 50%,var(--opt-b) 50%);box-shadow:0 6px 14px -6px rgba(0,0,0,.4)}
+.dot{color:var(--opt-r)}
+.pill{box-shadow:none;border-radius:14px}
+.stats{gap:6px;padding:8px 14px 2px}
+.stat{border-radius:12px;box-shadow:none;font-size:10px;padding:6px 10px;white-space:nowrap}
+.opt{border-radius:16px;min-height:54px;font-size:16px;font-weight:800;letter-spacing:.2px;text-transform:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 10px 22px -10px rgba(0,0,0,.45)}
+#oL{background:var(--opt-r)}#oR{background:var(--opt-b)}
+.card{max-width:290px;border-radius:28px;overflow:hidden;background:var(--card);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 28px 50px -20px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.05)}
+.card::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 88% 6%,rgba(212,49,63,.14),transparent 42%),radial-gradient(circle at 8% 96%,rgba(29,79,179,.16),transparent 46%)}
+.char{position:relative;font-weight:800;letter-spacing:-1px}
+.wk,.badge{position:relative}
+.badge{background:rgba(29,79,179,.1);color:var(--blue);padding:7px 14px}
+#toast{min-height:34px;display:flex;align-items:center;justify-content:center;padding:6px 14px;border-radius:12px;max-width:100%;transition:background .2s}
+#toast.ok{background:rgba(46,158,91,.14)}#toast.no{background:rgba(212,49,63,.14)}
+.hintrow{font-weight:600;margin:6px 0 4px}
+footer{padding-top:12px;background:linear-gradient(to top,var(--bg) 65%,transparent)}
+.btn{border-radius:16px;padding:13px 6px;box-shadow:0 2px 0 var(--bd)}
+#chalBtn:not(.on){background:var(--opt-b);color:#fff;border-color:transparent}
+.btn.on{background:var(--opt-r);color:#fff;border-color:transparent}
+.sheet{border-radius:30px 30px 0 0;box-shadow:0 -20px 60px rgba(0,0,0,.28)}
+.mh{font-size:19px}
+.st{display:flex;align-items:center;gap:8px;color:var(--sub)}
+.st::before{content:"";width:4px;height:12px;border-radius:2px;background:var(--opt-r)}
+.di{border-radius:16px;padding:14px 8px;gap:2px}
+.dh{font-size:24px}.da{font-size:12.5px;color:var(--blue)}
+.big{font-size:60px;line-height:1.1}
+@media (prefers-reduced-motion:reduce){.orb{display:none}}
+:root{--red:#ff3d5a;--blue:#2d6cff;--violet:#7c4dff;--mint:#00c48c;--amber:#ffb020;--bgg:radial-gradient(60% 40% at 12% 8%,rgba(255,61,90,.20),transparent 60%),radial-gradient(55% 45% at 92% 14%,rgba(124,77,255,.18),transparent 60%),radial-gradient(65% 45% at 85% 92%,rgba(45,108,255,.22),transparent 60%),#f6f7fc;--cardbg:linear-gradient(180deg,#fff,#f7f4ff);--gray:#eef0fa}
+:root[data-theme=dark]{--red:#ff5470;--blue:#6aa2ff;--violet:#9b7bff;--mint:#2ee6b0;--bgg:radial-gradient(60% 40% at 12% 8%,rgba(255,61,90,.28),transparent 60%),radial-gradient(55% 45% at 92% 14%,rgba(124,77,255,.28),transparent 60%),radial-gradient(65% 45% at 85% 92%,rgba(45,108,255,.30),transparent 60%),#0d1020;--cardbg:linear-gradient(180deg,#27273d,#1b1b2c);--gray:#2a2c44}
+body{background:var(--bgg);background-attachment:fixed}
+.orb{opacity:1;filter:blur(3px)}
+.title{font-size:17px;background:linear-gradient(90deg,var(--red),var(--violet),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
+.pill.dark{background:linear-gradient(135deg,var(--violet),var(--blue));color:#fff;border:none;box-shadow:0 6px 16px rgba(45,108,255,.35)}
+#score{color:var(--red);font-size:14px}
+.stats .stat{border-width:1.5px}
+.stats .stat:nth-child(1){background:rgba(255,176,32,.16);border-color:rgba(255,176,32,.55)}
+.stats .stat:nth-child(2){background:rgba(124,77,255,.14);border-color:rgba(124,77,255,.45)}
+.stats .stat:nth-child(3){background:rgba(0,196,140,.16);border-color:rgba(0,196,140,.5)}
+.stats .stat:nth-child(4){background:rgba(255,61,90,.13);border-color:rgba(255,61,90,.45)}
+#combo.hot{box-shadow:0 0 16px rgba(255,122,24,.6)}
+.opt{font-size:15px;padding:14px 8px;border-radius:18px}
+#oL{background:linear-gradient(135deg,#ff3d5a,#ff8a3d);box-shadow:0 8px 20px rgba(255,61,90,.4)}
+#oR{background:linear-gradient(135deg,#2d6cff,#7c4dff);box-shadow:0 8px 20px rgba(45,108,255,.4)}
+#oL::before{content:"\\2190  "}#oR::after{content:"  \\2192"}
+.card{background:var(--cardbg);border:2px solid var(--bd);box-shadow:0 20px 45px rgba(80,60,200,.18);overflow:hidden}
+.card::before{content:"";position:absolute;left:0;right:0;top:0;height:7px;background:linear-gradient(90deg,var(--red),var(--violet),var(--blue))}
+.card[data-k=W]::before{background:linear-gradient(90deg,var(--mint),var(--blue))}
+.card.weak{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,61,90,.3),0 20px 45px rgba(255,61,90,.25)}
+.char{text-shadow:0 8px 28px rgba(124,77,255,.4)}
+.badge{background:linear-gradient(90deg,var(--red),var(--violet));color:#fff;padding:7px 14px;box-shadow:0 4px 12px rgba(124,77,255,.35)}
+.card[data-k=W] .badge{background:linear-gradient(90deg,var(--mint),var(--blue))}
+#toast.ok,#toast.no{padding:6px 16px;border-radius:30px}
+#toast.ok{background:rgba(0,196,140,.18);color:#00a578}
+#toast.no{background:rgba(255,61,90,.16)}
+:root[data-theme=dark] #toast.ok{color:var(--mint)}
+.fok{background:radial-gradient(circle,rgba(0,196,140,.38),transparent 70%)}
+.fno{background:radial-gradient(circle,rgba(255,61,90,.38),transparent 70%)}
+.btn,.pill{transition:transform .15s}.btn:active,.pill:active,.di:active{transform:scale(.96)}
+.btn{border:none;color:#fff;padding:13px 14px}
+#speakBtn{background:linear-gradient(135deg,#7c4dff,#a07bff);box-shadow:0 8px 18px rgba(124,77,255,.4)}
+#chalBtn{background:linear-gradient(135deg,#ff3d5a,#ff8a3d);box-shadow:0 8px 18px rgba(255,61,90,.4)}
+#chalBtn.on{background:linear-gradient(135deg,#00b37e,#2d9cff);box-shadow:0 8px 18px rgba(0,179,126,.4)}
+#dictBtn{background:linear-gradient(135deg,#2d6cff,#4aa8ff);box-shadow:0 8px 18px rgba(45,108,255,.4)}
+.btn[id^=res]{color:#fff;background:linear-gradient(135deg,var(--violet),var(--blue))}
+#resX{background:var(--gray);color:var(--tx)}
+.mh{background:linear-gradient(90deg,rgba(255,61,90,.14),rgba(45,108,255,.14))}
+.st{color:var(--blue);display:flex;align-items:center;gap:8px}
+.st::before{content:"";width:4px;height:14px;border-radius:2px;background:linear-gradient(var(--red),var(--blue))}
+.di{background:var(--card);border:1.5px solid var(--bd);box-shadow:0 4px 12px rgba(80,60,200,.08);cursor:pointer}
+.dh{background:linear-gradient(135deg,var(--red),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
+#dictQ:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(45,108,255,.22)}
+.big{font-size:58px;background:linear-gradient(135deg,var(--red),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
+</style>
+</head>
+<body>
+<div id="orbs"></div>
+<div id="flash"></div>
+<header>
+  <div class="hl"><div class="title"><span class="logo">한</span><span>Hangeul<span class="dot">.me</span></span></div><button class="pill round" id="themeBtn" title="Ubah tema">☀️</button></div>
+  <div class="hr"><button class="pill dark" id="modeBtn">Mode: Huruf</button><div class="pill" style="cursor:default">SKOR <span id="score">0</span></div></div>
+</header>
+<div class="stats">
+  <div class="stat" id="combo">🔥 Combo <b id="comboN">0</b> · x<b id="mult">1</b></div>
+  <div class="stat">🏆 Rekor combo <b id="bestS">0</b></div>
+  <div class="stat" id="timer" style="display:none">⏱ <b id="tLeft">60</b>d</div>
+  <div class="stat">🎯 Kartu lemah <b id="weakN">0</b></div>
+</div>
+<div class="game">
+  <div class="opts"><div class="opt" id="oL">-</div><div class="opt" id="oR">-</div></div>
+  <div class="zone">
+    <div class="card" id="card"><div class="char" id="ch">ㄱ</div><div class="wk" id="wk"></div><div class="badge" id="bdg">-</div></div>
+  </div>
+  <div id="toast">&nbsp;</div>
+  <div class="hintrow"><span>← Geser kiri</span><span>•</span><span>Geser kanan →</span></div>
+</div>
+<footer>
+  <button class="btn" id="speakBtn">🔊 Dengar</button>
+  <button class="btn" id="chalBtn">⏱ 60 detik</button>
+  <button class="btn" id="dictBtn">📖 Kamus</button>
+</footer>
+
+<div class="ov" id="dictOv"><div class="sheet"><div class="mh"><span>Referensi &amp; Arti</span><button class="x" id="dictX">&times;</button></div><div style="padding:12px 20px 0"><input id="dictQ" type="search" placeholder="Cari hangeul, romanisasi, atau arti…"></div><div id="chips"></div><div class="mb" id="dictBody"></div></div></div>
+<div class="ov center" id="resOv"><div class="sheet"><div style="font-weight:800;font-size:18px" id="resT">Waktu habis!</div><div class="big" id="resS">0</div><div class="res" id="resD"></div><button class="btn" style="max-width:none;width:100%" id="resBtn">Main lagi</button><button class="btn" style="max-width:none;width:100%;margin-top:8px" id="resX">Tutup</button></div></div>
+
+<script>
+const RAW = [
+ ["L","Konsonan Dasar","Konsonan","ㄱ|g / k|m;ㄴ|n|s;ㄷ|d / t|b;ㄹ|r / l|g;ㅁ|m|n;ㅂ|b / p|j;ㅅ|s|h;ㅇ|ng|m|Diam di awal, ng di akhir;ㅈ|j|k;ㅎ|h|n"],
+ ["L","Konsonan Aspirasi","Konsonan","ㅋ|k (tebal)|t;ㅌ|t (tebal)|p;ㅍ|p (tebal)|k;ㅊ|ch|j"],
+ ["L","Konsonan Kembar","Konsonan kembar","ㄲ|kk|kh;ㄸ|tt|th;ㅃ|pp|ph;ㅆ|ss|s;ㅉ|jj|ch"],
+ ["L","Vokal Dasar","Vokal","ㅏ|a|eo;ㅓ|eo|a;ㅗ|o|u;ㅜ|u|o;ㅡ|eu|i;ㅣ|i|eu;ㅑ|ya|yeo;ㅕ|yeo|ya;ㅛ|yo|yu;ㅠ|yu|yo"],
+ ["L","Vokal Ganda","Vokal ganda","ㅐ|ae|eo|Bunyinya mirip ㅔ;ㅒ|yae|ye;ㅔ|e|a|Bunyinya mirip ㅐ;ㅖ|ye|yo;ㅘ|wa|wo;ㅙ|wae|yu;ㅚ|oe|u;ㅝ|wo|wa;ㅞ|we|ae;ㅟ|wi|u;ㅢ|ui|i"],
+ ["W","Kata","","가다|ga-da|sa-da|Pergi;사다|sa-da|ma-si|Membeli;오다|o-da|ga-da|Datang;먹다|meok-da|mok-da|Makan;마시다|ma-si-da|ma-sa-da|Minum;보다|bo-da|o-da|Melihat;사람|sa-ram|na-ra|Orang;나라|na-ra|sa-ram|Negara;나무|na-mu|mo-ja|Pohon;모자|mo-ja|ba-ji|Topi;바지|ba-ji|na-mu|Celana;고기|go-gi|gim-chi|Daging;김치|gim-chi|go-gi|Kimchi;친구|chin-gu|hak-gyo|Teman;학교|hak-gyo|chin-gu|Sekolah;사랑|sa-rang|ha-neul|Cinta;하늘|ha-neul|sa-rang|Langit;물|mul|bul|Air;불|bul|mul|Api;집|jip|jim|Rumah;의자|ui-ja|chaek-sang|Kursi;책상|chaek-sang|ui-ja|Meja;가방|ga-bang|gong-chaek|Tas;공책|gong-chaek|yeon-pil|Buku catatan;연필|yeon-pil|ga-bang|Pensil;노래|no-rae|no-ra|Lagu;회사|hoe-sa|byeong-won|Perusahaan;병원|byeong-won|hoe-sa|Rumah sakit;의사|ui-sa|ui-ja|Dokter;시간|si-gan|si-ga|Waktu"],
+ ["D","Salam & Ungkapan","","안녕하세요|an-nyeong-ha-se-yo||Halo;감사합니다|gam-sa-ham-ni-da||Terima kasih;죄송합니다|joe-song-ham-ni-da||Maaf (formal);미안해요|mi-an-hae-yo||Maaf (santai);네|ne||Ya;아니요|a-ni-yo||Tidak;괜찮아요|gwaen-chan-a-yo||Tidak apa-apa;맛있어요|ma-si-sseo-yo||Enak;사랑해요|sa-rang-hae-yo||Aku cinta kamu;안녕히 가세요|an-nyeong-hi ga-se-yo||Selamat tinggal (untuk yang pergi);처음 뵙겠습니다|cheo-eum boep-get-seum-ni-da||Senang berkenalan;안녕히 계세요|an-nyeong-hi gye-se-yo||Selamat tinggal (untuk yang tinggal);환영합니다|hwan-yeong-ham-ni-da||Selamat datang;축하합니다|chuk-ha-ham-ni-da||Selamat;화이팅|hwa-i-ting||Semangat!;잘 먹겠습니다|jal meok-get-seum-ni-da||Selamat makan;잘 먹었습니다|jal meo-geo-sseum-ni-da||Terima kasih makanannya;잘 자요|jal ja-yo||Selamat tidur;도와주세요|do-wa-ju-se-yo||Tolong bantu saya;잠시만요|jam-si-man-yo||Tunggu sebentar;모르겠어요|mo-reu-ge-sseo-yo||Saya tidak tahu;알겠어요|al-ge-sseo-yo||Saya mengerti;주세요|ju-se-yo||Tolong beri saya;얼마예요|eol-ma-ye-yo||Berapa harganya?;어디예요|eo-di-ye-yo||Di mana?;이거 뭐예요|i-geo mwo-ye-yo||Ini apa?;천천히 말해 주세요|cheon-cheon-hi mal-hae ju-se-yo||Tolong bicara pelan-pelan;다시 말해 주세요|da-si mal-hae ju-se-yo||Tolong ulangi"],
+ ["D","Kata Ganti","","나|na||Saya (santai);저|jeo||Saya (sopan);너|neo||Kamu (santai);당신|dang-sin||Anda;우리|u-ri||Kami / kita;그|geu||Dia (laki-laki);그녀|geu-nyeo||Dia (perempuan);이것|i-geot||Ini;그것|geu-geot||Itu;저것|jeo-geot||Itu (jauh)"],
+ ["D","Kata Tanya","","누구|nu-gu||Siapa;무엇|mu-eot||Apa;뭐|mwo||Apa (santai);어디|eo-di||Di mana;언제|eon-je||Kapan;왜|wae||Mengapa;어떻게|eo-tteo-ke||Bagaimana;얼마|eol-ma||Berapa (harga);몇|myeot||Berapa (jumlah);어느|eo-neu||Yang mana"],
+ ["D","Angka (Sino-Korea)","","일|il||Satu;이|i||Dua;삼|sam||Tiga;사|sa||Empat;오|o||Lima;육|yuk||Enam;칠|chil||Tujuh;팔|pal||Delapan;구|gu||Sembilan;십|sip||Sepuluh;백|baek||Seratus;천|cheon||Seribu;만|man||Sepuluh ribu;영|yeong||Nol"],
+ ["D","Angka Korea Asli","","하나|ha-na||Satu;둘|dul||Dua;셋|set||Tiga;넷|net||Empat;다섯|da-seot||Lima;여섯|yeo-seot||Enam;일곱|il-gop||Tujuh;여덟|yeo-deol||Delapan;아홉|a-hop||Sembilan;열|yeol||Sepuluh;스물|seu-mul||Dua puluh;서른|seo-reun||Tiga puluh;마흔|ma-heun||Empat puluh;쉰|swin||Lima puluh"],
+ ["D","Keluarga","","가족|ga-jok||Keluarga;엄마|eom-ma||Ibu;아빠|a-ppa||Ayah;형|hyeong||Kakak laki-laki (dari pria);누나|nu-na||Kakak perempuan (dari pria);오빠|o-ppa||Kakak laki-laki (dari wanita);언니|eon-ni||Kakak perempuan (dari wanita);동생|dong-saeng||Adik;할머니|hal-meo-ni||Nenek;할아버지|ha-ra-beo-ji||Kakek;아들|a-deul||Anak laki-laki;딸|ttal||Anak perempuan;남편|nam-pyeon||Suami;아내|a-nae||Istri;아기|a-gi||Bayi;부모님|bu-mo-nim||Orang tua;삼촌|sam-chon||Paman;이모|i-mo||Bibi (dari pihak ibu);고모|go-mo||Bibi (dari pihak ayah);조카|jo-ka||Keponakan"],
+ ["D","Makanan & Minuman","","밥|bap||Nasi;빵|ppang||Roti;라면|ra-myeon||Mi instan;비빔밥|bi-bim-bap||Nasi campur;불고기|bul-go-gi||Bulgogi (daging panggang);계란|gye-ran||Telur;과일|gwa-il||Buah;사과|sa-gwa||Apel;커피|keo-pi||Kopi;우유|u-yu||Susu;국|guk||Sup;찌개|jji-gae||Semur / sup;떡볶이|tteok-bok-ki||Tteokbokki;김밥|gim-bap||Kimbap;삼겹살|sam-gyeop-sal||Daging babi panggang;만두|man-du||Pangsit;냉면|naeng-myeon||Mi dingin;된장|doen-jang||Pasta kedelai;고추장|go-chu-jang||Pasta cabai;치킨|chi-kin||Ayam goreng;차|cha||Teh;주스|ju-seu||Jus;바나나|ba-na-na||Pisang;포도|po-do||Anggur;딸기|ttal-gi||Stroberi;수박|su-bak||Semangka;귤|gyul||Jeruk mandarin;감자|gam-ja||Kentang;양파|yang-pa||Bawang bombai;마늘|ma-neul||Bawang putih;고추|go-chu||Cabai;야채|ya-chae||Sayur;소금|so-geum||Garam;설탕|seol-tang||Gula;과자|gwa-ja||Camilan;아이스크림|a-i-seu-keu-rim||Es krim"],
+ ["D","Warna","","빨간색|ppal-gan-saek||Merah;파란색|pa-ran-saek||Biru;노란색|no-ran-saek||Kuning;초록색|cho-rok-saek||Hijau;하얀색|ha-yan-saek||Putih;검은색|geo-meun-saek||Hitam;주황색|ju-hwang-saek||Oranye;보라색|bo-ra-saek||Ungu;분홍색|bun-hong-saek||Merah muda;갈색|gal-saek||Cokelat;회색|hoe-saek||Abu-abu;금색|geum-saek||Emas;은색|eun-saek||Perak"],
+ ["D","Hewan","","개|gae||Anjing;고양이|go-yang-i||Kucing;새|sae||Burung;물고기|mul-go-gi||Ikan;말|mal||Kuda;소|so||Sapi;돼지|dwae-ji||Babi;닭|dak||Ayam;오리|o-ri||Bebek;양|yang||Domba;토끼|to-kki||Kelinci;호랑이|ho-rang-i||Harimau;사자|sa-ja||Singa;곰|gom||Beruang;코끼리|ko-kki-ri||Gajah;원숭이|won-sung-i||Monyet;쥐|jwi||Tikus;뱀|baem||Ular;거북이|geo-bug-i||Kura-kura;나비|na-bi||Kupu-kupu;벌|beol||Lebah;개미|gae-mi||Semut"],
+ ["D","Waktu","","오늘|o-neul||Hari ini;내일|nae-il||Besok;어제|eo-je||Kemarin;아침|a-chim||Pagi;점심|jeom-sim||Siang;저녁|jeo-nyeok||Sore / malam;밤|bam||Malam;지금|ji-geum||Sekarang;매일|mae-il||Setiap hari;주말|ju-mal||Akhir pekan;오전|o-jeon||Pagi (AM);오후|o-hu||Sore (PM);올해|ol-hae||Tahun ini;작년|jak-nyeon||Tahun lalu;내년|nae-nyeon||Tahun depan"],
+ ["D","Hari","","월요일|wol-yo-il||Senin;화요일|hwa-yo-il||Selasa;수요일|su-yo-il||Rabu;목요일|mok-yo-il||Kamis;금요일|geum-yo-il||Jumat;토요일|to-yo-il||Sabtu;일요일|il-yo-il||Minggu"],
+ ["D","Tubuh","","머리|meo-ri||Kepala / rambut;얼굴|eol-gul||Wajah;눈|nun||Mata;코|ko||Hidung;입|ip||Mulut;귀|gwi||Telinga;목|mok||Leher;어깨|eo-kkae||Bahu;팔|pal||Lengan;손|son||Tangan;손가락|son-ga-rak||Jari;배|bae||Perut;등|deung||Punggung;다리|da-ri||Kaki (tungkai);발|bal||Telapak kaki;무릎|mu-reup||Lutut;치아|chi-a||Gigi;피부|pi-bu||Kulit;몸|mom||Tubuh;마음|ma-eum||Hati / perasaan"],
+ ["D","Kata Kerja","","하다|ha-da||Melakukan;되다|doe-da||Menjadi;있다|it-da||Ada;없다|eop-da||Tidak ada;자다|ja-da||Tidur;일어나다|il-eo-na-da||Bangun;앉다|an-da||Duduk;서다|seo-da||Berdiri;걷다|geot-da||Berjalan;뛰다|ttwi-da||Berlari;읽다|ik-da||Membaca;쓰다|sseu-da||Menulis;듣다|deut-da||Mendengar;말하다|mal-ha-da||Berbicara;배우다|bae-u-da||Belajar;가르치다|ga-reu-chi-da||Mengajar;일하다|il-ha-da||Bekerja;공부하다|gong-bu-ha-da||Belajar (studi);만나다|man-na-da||Bertemu;주다|ju-da||Memberi;받다|bat-da||Menerima;열다|yeol-da||Membuka;닫다|dat-da||Menutup;사랑하다|sa-rang-ha-da||Mencintai;좋아하다|jo-a-ha-da||Menyukai;알다|al-da||Tahu;모르다|mo-reu-da||Tidak tahu;기다리다|gi-da-ri-da||Menunggu;전화하다|jeon-hwa-ha-da||Menelepon"],
+ ["D","Kata Sifat","","크다|keu-da||Besar;작다|jak-da||Kecil;많다|man-ta||Banyak;적다|jeok-da||Sedikit;좋다|jo-ta||Baik / bagus;나쁘다|na-ppeu-da||Buruk;예쁘다|ye-ppeu-da||Cantik;멋있다|meo-sit-da||Keren;맛있다|ma-sit-da||Enak;맛없다|ma-deop-da||Tidak enak;뜨겁다|tteu-geop-da||Panas (benda);차갑다|cha-gap-da||Dingin (benda);덥다|deop-da||Panas (cuaca);춥다|chup-da||Dingin (cuaca);어렵다|eo-ryeop-da||Sulit;쉽다|swip-da||Mudah;재미있다|jae-mi-it-da||Menyenangkan;비싸다|bi-ssa-da||Mahal;싸다|ssa-da||Murah;빠르다|ppa-reu-da||Cepat;느리다|neu-ri-da||Lambat;새롭다|sae-rop-da||Baru;멀다|meol-da||Jauh;가깝다|ga-kkap-da||Dekat"],
+ ["D","Perasaan","","기쁘다|gi-ppeu-da||Senang;슬프다|seul-peu-da||Sedih;화나다|hwa-na-da||Marah;무섭다|mu-seop-da||Takut;피곤하다|pi-gon-ha-da||Lelah;배고프다|bae-go-peu-da||Lapar;목마르다|mong-ma-reu-da||Haus;행복하다|haeng-bok-ha-da||Bahagia;외롭다|oe-rop-da||Kesepian;아프다|a-peu-da||Sakit"],
+ ["D","Tempat","","도서관|do-seo-gwan||Perpustakaan;은행|eun-haeng||Bank;시장|si-jang||Pasar;가게|ga-ge||Toko;슈퍼마켓|syu-peo-ma-ket||Supermarket;식당|sik-dang||Restoran;카페|ka-pe||Kafe;공원|gong-won||Taman;우체국|u-che-guk||Kantor pos;경찰서|gyeong-chal-seo||Kantor polisi;약국|yak-guk||Apotek;극장|geuk-jang||Bioskop;호텔|ho-tel||Hotel;화장실|hwa-jang-sil||Toilet;교회|gyo-hoe||Gereja;대학교|dae-hak-gyo||Universitas;방|bang||Kamar;부엌|bu-eok||Dapur;문|mun||Pintu;창문|chang-mun||Jendela"],
+ ["D","Transportasi","","버스|beo-seu||Bus;지하철|ji-ha-cheol||Kereta bawah tanah;택시|taek-si||Taksi;기차|gi-cha||Kereta api;비행기|bi-haeng-gi||Pesawat;공항|gong-hang||Bandara;자동차|ja-dong-cha||Mobil;자전거|ja-jeon-geo||Sepeda;오토바이|o-to-ba-i||Sepeda motor;역|yeok||Stasiun;정류장|jeong-nyu-jang||Halte;길|gil||Jalan"],
+ ["D","Benda Sehari-hari","","책|chaek||Buku;전화|jeon-hwa||Telepon;휴대폰|hyu-dae-pon||Ponsel;컴퓨터|keom-pyu-teo||Komputer;텔레비전|tel-le-bi-jeon||Televisi;시계|si-gye||Jam;우산|u-san||Payung;열쇠|yeol-soe||Kunci;돈|don||Uang;지갑|ji-gap||Dompet;안경|an-gyeong||Kacamata;침대|chim-dae||Tempat tidur;컵|keop||Gelas;숟가락|sut-ga-rak||Sendok;젓가락|jeot-ga-rak||Sumpit;사진|sa-jin||Foto;편지|pyeon-ji||Surat;선물|seon-mul||Hadiah"],
+ ["D","Pakaian","","옷|ot||Pakaian;신발|sin-bal||Sepatu;양말|yang-mal||Kaus kaki;셔츠|syeo-cheu||Kemeja;치마|chi-ma||Rok;청바지|cheong-ba-ji||Jeans;코트|ko-teu||Mantel;장갑|jang-gap||Sarung tangan;목도리|mok-do-ri||Syal;한복|han-bok||Pakaian tradisional Korea"],
+ ["D","Alam & Cuaca","","산|san||Gunung;바다|ba-da||Laut;강|gang||Sungai;호수|ho-su||Danau;섬|seom||Pulau;꽃|kkot||Bunga;풀|pul||Rumput;땅|ttang||Tanah;비|bi||Hujan;눈|nun||Salju;바람|ba-ram||Angin;구름|gu-reum||Awan;해|hae||Matahari;달|dal||Bulan;별|byeol||Bintang;날씨|nal-ssi||Cuaca;봄|bom||Musim semi;여름|yeo-reum||Musim panas;가을|ga-eul||Musim gugur;겨울|gyeo-ul||Musim dingin"],
+ ["D","Pekerjaan","","선생님|seon-saeng-nim||Guru;학생|hak-saeng||Murid;간호사|gan-ho-sa||Perawat;경찰|gyeong-chal||Polisi;군인|gun-in||Tentara;요리사|yo-ri-sa||Koki;가수|ga-su||Penyanyi;배우|bae-u||Aktor;회사원|hoe-sa-won||Karyawan;변호사|byeon-ho-sa||Pengacara;기자|gi-ja||Wartawan;운전사|un-jeon-sa||Pengemudi;농부|nong-bu||Petani"],
+ ["D","Arah & Posisi","","위|wi||Atas;아래|a-rae||Bawah;앞|ap||Depan;뒤|dwi||Belakang;옆|yeop||Samping;안|an||Dalam;밖|bak||Luar;왼쪽|oen-jjok||Kiri;오른쪽|o-reun-jjok||Kanan;가운데|ga-un-de||Tengah;여기|yeo-gi||Di sini;저기|jeo-gi||Di sana"],
+ ["D","Partikel & Penghubung","","은/는|eun / neun||Partikel topik;이/가|i / ga||Partikel subjek;을/를|eul / reul||Partikel objek;에|e||Ke / pada (waktu, tempat);에서|e-seo||Di (tempat aktivitas);와/과|wa / gwa||Dan / dengan;도|do||Juga;그리고|geu-ri-go||Dan;그래서|geu-rae-seo||Jadi;하지만|ha-ji-man||Tetapi"]
+];
+const ALL = [];
+RAW.forEach(([kind, type, def, data]) => data.split(";").forEach(s => {
+  const [h, c, w, m] = s.split("|");
+  ALL.push({ h, c, w, kind, type: kind === "W" ? "Kata" : type, m: m || def });
+}));
+const SETS = { L: ALL.filter(i => i.kind === "L"), W: ALL.filter(i => i.kind === "W") };
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+
+let mode = "L", challenge = false, timeLeft = 60, timerId = null;
+let queue = [], cur = null, leftOk = false, busy = false;
+let score = 0, streak = 0, total = 0, right = 0, runBest = 0;
+let weak = store.get("hg_weak", {});
+let bestStreak = store.get("hg_best_streak", 0);
+let bestChal = store.get("hg_best_chal", 0);
+
+const root = document.documentElement;
+function setTheme(t) { root.setAttribute("data-theme", t); $("themeBtn").textContent = t === "dark" ? "🌙" : "☀️"; }
+setTheme(matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+$("themeBtn").onclick = () => setTheme(root.getAttribute("data-theme") === "dark" ? "light" : "dark");
+
+const orbs = [];
+(function () {
+  const box = $("orbs"), n = innerWidth < 500 ? 12 : 26;
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement("div"), s = Math.random() * 26 + 12;
+    el.className = "orb"; el.style.width = el.style.height = s + "px";
+    el.style.background = ["rgba(255,61,90,.5)","rgba(45,108,255,.5)","rgba(124,77,255,.5)","rgba(0,196,140,.45)","rgba(255,176,32,.5)"][Math.floor(Math.random() * 5)];
+    box.appendChild(el);
+    orbs.push({ el, s, x: Math.random() * innerWidth, y: Math.random() * innerHeight, vx: Math.random() - .5, vy: Math.random() - .5 });
+  }
+  (function tick() {
+    orbs.forEach(o => {
+      o.x += o.vx; o.y += o.vy;
+      if (o.x <= 0 || o.x + o.s >= innerWidth) o.vx *= -1;
+      if (o.y <= 0 || o.y + o.s >= innerHeight) o.vy *= -1;
+      o.el.style.transform = `translate(${o.x}px,${o.y}px)`;
+    });
+    requestAnimationFrame(tick);
+  })();
+})();
+
+function shuffle(a) { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function pool() { return challenge ? [...SETS.L, ...SETS.W] : SETS[mode]; }
+function nextCard() {
+  if (!queue.length) queue = shuffle(pool());
+  return queue.pop();
+}
+function markWrong(item) {
+  weak[item.h] = 2; store.set("hg_weak", weak);
+  queue.splice(Math.max(0, queue.length - 3), 0, item);
+}
+function markRight(item) {
+  if (weak[item.h]) { weak[item.h]--; if (weak[item.h] <= 0) delete weak[item.h]; store.set("hg_weak", weak); }
+}
+
+function mult() { return 1 + Math.floor(streak / 5); }
+function hud() {
+  $("score").textContent = score;
+  $("comboN").textContent = streak; $("mult").textContent = mult();
+  $("combo").classList.toggle("hot", streak >= 5);
+  $("bestS").textContent = bestStreak;
+  $("weakN").textContent = Object.keys(weak).length;
+  $("timer").style.display = challenge ? "" : "none";
+  $("tLeft").textContent = timeLeft;
+  $("timer").classList.toggle("low", challenge && timeLeft <= 10);
+}
+
+const card = $("card");
+function show() {
+  cur = nextCard();
+  $("ch").textContent = cur.h;
+  $("ch").style.fontSize = cur.h.length > 2 ? "50px" : cur.h.length === 2 ? "68px" : "92px";
+  $("bdg").textContent = cur.type; card.dataset.k = cur.kind;
+  const isWeak = !!weak[cur.h];
+  card.classList.toggle("weak", isWeak);
+  $("wk").textContent = isWeak ? "KARTU LEMAH · ULANGI!" : "";
+  leftOk = Math.random() < .5;
+  $("oL").textContent = leftOk ? cur.c : cur.w;
+  $("oR").textContent = leftOk ? cur.w : cur.c;
+  card.style.transition = "transform .5s cubic-bezier(.175,.885,.32,1.2)";
+  card.style.transform = "none"; card.style.opacity = "1"; card.style.borderColor = "";
+  $("flash").style.opacity = "0"; $("flash").className = "";
+  $("oL").style.transform = $("oR").style.transform = "scale(1)";
+  cx = 0; busy = false; hud();
+}
+
+function answer(swipedLeft) {
+  if (busy || !cur) return;
+  busy = true; total++;
+  const ok = swipedLeft ? leftOk : !leftOk;
+  const t = $("toast");
+  if (ok) {
+    right++; streak++; runBest = Math.max(runBest, streak); score += mult();
+    if (streak > bestStreak) { bestStreak = streak; store.set("hg_best_streak", bestStreak); }
+    markRight(cur);
+    t.className = "ok"; t.textContent = `✓ ${cur.c} · ${cur.m}`;
+  } else {
+    streak = 0; markWrong(cur);
+    t.className = "no"; t.textContent = `✗ Jawaban: ${cur.c} · ${cur.m}`;
+  }
+  $("flash").className = ok ? "fok" : "fno"; $("flash").style.opacity = "1";
+  card.style.transition = "all .3s ease-in";
+  card.style.transform = `translateX(${swipedLeft ? -innerWidth : innerWidth}px) rotate(${swipedLeft ? -25 : 25}deg)`;
+  card.style.opacity = "0";
+  hud();
+  setTimeout(() => { card.style.transition = "none"; setTimeout(show, 50); }, 250);
+}
+
+let drag = false, sx = 0, cx = 0;
+const px = e => e.touches ? e.touches[0].clientX : e.clientX;
+function dStart(e) { if (busy) return; drag = true; sx = px(e); card.style.transition = "none"; }
+function dMove(e) {
+  if (!drag || busy) return;
+  cx = px(e) - sx;
+  card.style.transform = `translateX(${cx}px) rotate(${cx * .08}deg)`;
+  card.style.borderColor = cx < -30 ? "var(--red)" : cx > 30 ? "var(--blue)" : "";
+  $("oL").style.transform = cx < -30 ? "scale(1.1)" : cx > 30 ? "scale(.9)" : "scale(1)";
+  $("oR").style.transform = cx > 30 ? "scale(1.1)" : cx < -30 ? "scale(.9)" : "scale(1)";
+}
+function dEnd() {
+  if (!drag) return; drag = false;
+  if (cx < -80) answer(true);
+  else if (cx > 80) answer(false);
+  else { card.style.transition = "transform .4s cubic-bezier(.175,.885,.32,1.2)"; card.style.transform = "none"; card.style.borderColor = ""; $("oL").style.transform = $("oR").style.transform = "scale(1)"; }
+}
+card.addEventListener("mousedown", dStart);
+card.addEventListener("touchstart", dStart, { passive: true });
+addEventListener("mousemove", dMove);
+addEventListener("touchmove", dMove, { passive: true });
+addEventListener("mouseup", dEnd);
+addEventListener("touchend", dEnd);
+addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft") answer(true);
+  else if (e.key === "ArrowRight") answer(false);
+  else if (e.key === " ") { e.preventDefault(); speak(); }
+});
+
+function speak(t) {
+  const txt = typeof t === "string" ? t : (cur && cur.h);
+  if (!txt || !("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(txt);
+    u.lang = "ko-KR"; u.rate = .8;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+if (!("speechSynthesis" in window)) $("speakBtn").style.display = "none";
+$("speakBtn").onclick = speak;
+
+$("modeBtn").onclick = () => {
+  if (challenge) return;
+  mode = mode === "L" ? "W" : "L";
+  $("modeBtn").textContent = mode === "L" ? "Mode: Huruf" : "Mode: Suku Kata";
+  queue = []; streak = 0; show();
+};
+
+function startChallenge() {
+  clearInterval(timerId);
+  challenge = true; timeLeft = 60; score = 0; streak = 0; total = 0; right = 0; runBest = 0; queue = [];
+  $("chalBtn").classList.add("on"); $("chalBtn").textContent = "⏹ Berhenti";
+  $("modeBtn").style.opacity = ".4";
+  show();
+  timerId = setInterval(() => { timeLeft--; hud(); if (timeLeft <= 0) endChallenge(); }, 1000);
+}
+function endChallenge() {
+  clearInterval(timerId); challenge = false;
+  const record = score > bestChal;
+  if (record) { bestChal = score; store.set("hg_best_chal", bestChal); }
+  $("resT").textContent = record ? "🎉 Rekor baru!" : "Waktu habis!";
+  $("resS").textContent = score;
+  const acc = total ? Math.round(right / total * 100) : 0;
+  $("resD").innerHTML = `Benar <b>${right}</b> dari <b>${total}</b> (${acc}%)<br>Combo terbaik: <b>${runBest}</b><br>Rekor tantangan: <b>${bestChal}</b>`;
+  $("resOv").classList.add("active");
+  $("chalBtn").classList.remove("on"); $("chalBtn").textContent = "⏱ 60 detik";
+  $("modeBtn").style.opacity = "1";
+  score = 0; streak = 0; queue = []; busy = true; hud();
+}
+$("chalBtn").onclick = () => challenge ? endChallenge() : startChallenge();
+$("resBtn").onclick = () => { $("resOv").classList.remove("active"); startChallenge(); };
+$("resX").onclick = () => { $("resOv").classList.remove("active"); show(); };
+
+function buildDict() {
+  const body = $("dictBody"); body.innerHTML = "";
+  const chips = $("chips"); chips.innerHTML = "";
+  const q = ($("dictQ").value || "").trim().toLowerCase();
+  const cats = {};
+  ALL.filter(i => !q || [i.h, i.c, i.m, i.type].join(" ").toLowerCase().includes(q)).forEach(i => (cats[i.type] = cats[i.type] || []).push(i));
+  if (!Object.keys(cats).length) body.innerHTML = '<div class="res" style="margin-top:20px">Tidak ditemukan.</div>';
+  for (const [name, items] of Object.entries(cats)) {
+    const t = document.createElement("div"); t.className = "st"; t.textContent = name; body.appendChild(t);
+    const c = document.createElement("button"); c.className = "chip"; c.textContent = name + " " + items.length;
+    c.onclick = () => t.scrollIntoView({ behavior: "smooth", block: "start" }); chips.appendChild(c);
+    const g = document.createElement("div"); g.className = "grid";
+    items.forEach(i => {
+      const d = document.createElement("div"); d.className = "di" + (weak[i.h] ? " weak" : "");
+      d.innerHTML = `<span class="dh"></span><span class="da"></span><span class="dm"></span>`;
+      d.children[0].textContent = i.h; d.children[1].textContent = i.c; d.children[2].textContent = i.m; d.onclick = () => speak(i.h);
+      g.appendChild(d);
+    });
+    body.appendChild(g);
+  }
+}
+$("dictBtn").onclick = () => { buildDict(); $("dictOv").classList.add("active"); };
+$("dictX").onclick = () => $("dictOv").classList.remove("active");
+$("dictQ").oninput = buildDict;
+
+show();
+</script>
+</body>
+</html>
+'''
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/html; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(HTML_CONTENT.encode("utf-8"))
+
+if __name__ == "__main__":
+    print(f"Server berjalan di http://localhost:{PORT}")
+    webbrowser.open(f"http://localhost:{PORT}")
+    with socketserver.TCPServer(("", PORT), Handler) as httpd:
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            print("\nServer dihentikan.")
