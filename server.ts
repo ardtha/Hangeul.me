@@ -245,6 +245,37 @@ function authenticateMiddleware(req: AuthenticatedRequest, res: Response, next: 
   next();
 }
 
+type AuthenticatedUser = NonNullable<AuthenticatedRequest['authUser']>;
+
+function requireAuthUser(req: AuthenticatedRequest, res: Response): AuthenticatedUser | null {
+  if (!req.authUser) {
+    res.status(401).json({ error: 'Sesi tidak ditemukan. Silakan masuk terlebih dahulu.' });
+    return null;
+  }
+  return req.authUser;
+}
+
+function validateRegisterInput(body: {
+  name?: string;
+  email?: string;
+  password?: string;
+}): { error?: string; name: string; email: string; password: string } {
+  const name = String(body.name ?? '').trim();
+  const email = String(body.email ?? '').trim().toLowerCase();
+  const password = String(body.password ?? '');
+
+  if (name.length < 2) {
+    return { error: 'Nama lengkap minimal 2 karakter.', name, email, password };
+  }
+  if (!email.includes('@') || email.length < 5) {
+    return { error: 'Masukkan alamat email yang valid.', name, email, password };
+  }
+  if (password.length < 6) {
+    return { error: 'Kata sandi minimal 6 karakter.', name, email, password };
+  }
+  return { name, email, password };
+}
+
 async function createApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
@@ -257,23 +288,13 @@ async function createApp() {
       password?: string;
       initialProgress?: Partial<UserProgressSnapshot>;
     };
-    const name = String(body.name ?? '').trim();
-    const email = String(body.email ?? '').trim().toLowerCase();
-    const password = String(body.password ?? '');
-
-    if (name.length < 2) {
-      res.status(400).json({ error: 'Nama lengkap minimal 2 karakter.' });
-      return;
-    }
-    if (!email.includes('@') || email.length < 5) {
-      res.status(400).json({ error: 'Masukkan alamat email yang valid.' });
-      return;
-    }
-    if (password.length < 6) {
-      res.status(400).json({ error: 'Kata sandi minimal 6 karakter.' });
+    const validated = validateRegisterInput(body);
+    if (validated.error) {
+      res.status(400).json({ error: validated.error });
       return;
     }
 
+    const { name, email, password } = validated;
     if (store.users.some((u) => u.email.toLowerCase() === email)) {
       res.status(409).json({ error: 'Email sudah terdaftar. Silakan masuk menggunakan akun Anda.' });
       return;
@@ -332,7 +353,9 @@ async function createApp() {
   });
 
   app.get('/api/auth/me', authenticateMiddleware, (req: AuthenticatedRequest, res) => {
-    res.json({ user: req.authUser });
+    const authUser = requireAuthUser(req, res);
+    if (!authUser) return;
+    res.json({ user: authUser });
   });
 
   app.post('/api/auth/logout', authenticateMiddleware, (req: AuthenticatedRequest, res) => {
@@ -344,22 +367,24 @@ async function createApp() {
 
   // Save learner progress to server store
   app.put('/api/progress', authenticateMiddleware, (req: AuthenticatedRequest, res) => {
-    const authUser = req.authUser!;
-    const idx = store.users.findIndex((u) => u.id === authUser.id);
-    if (idx === -1) {
+    const authUser = requireAuthUser(req, res);
+    if (!authUser) return;
+
+    const user = store.users.find((u) => u.id === authUser.id);
+    if (!user) {
       res.status(404).json({ error: 'Akun tidak ditemukan.' });
       return;
     }
 
     const incoming = req.body as Partial<UserProgressSnapshot>;
     const normalized = normalizeProgress({
-      ...store.users[idx].progress,
+      ...user.progress,
       ...incoming,
     });
-    store.users[idx].progress = normalized;
+    user.progress = normalized;
     saveStore(store);
 
-    res.json({ user: sanitizeUser(store.users[idx]), progress: normalized });
+    res.json({ user: sanitizeUser(user), progress: normalized });
   });
 
   // Public weekly leaderboard based strictly on real registered learners
@@ -387,7 +412,9 @@ async function createApp() {
 
   // Checkout Pro subscription for learner
   app.post('/api/transactions/checkout', authenticateMiddleware, (req: AuthenticatedRequest, res) => {
-    const authUser = req.authUser!;
+    const authUser = requireAuthUser(req, res);
+    if (!authUser) return;
+
     const body = req.body as { plan?: string; method?: string };
     const plan: TransactionPlan = body.plan === 'monthly' ? 'monthly' : 'annual';
     const method = String(body.method ?? 'QRIS Instan').trim() || 'QRIS Instan';
@@ -410,15 +437,15 @@ async function createApp() {
     store.transactions.unshift(tx);
 
     let updatedUser = authUser;
-    const idx = store.users.findIndex((u) => u.id === authUser.id);
-    if (idx !== -1) {
-      store.users[idx].isPro = true;
-      store.users[idx].planCycle = plan;
-      store.users[idx].progress = {
-        ...normalizeProgress(store.users[idx].progress),
-        streakFreezeCount: Math.max(store.users[idx].progress?.streakFreezeCount ?? 0, 2),
+    const user = store.users.find((u) => u.id === authUser.id);
+    if (user) {
+      user.isPro = true;
+      user.planCycle = plan;
+      user.progress = {
+        ...normalizeProgress(user.progress),
+        streakFreezeCount: Math.max(user.progress?.streakFreezeCount ?? 0, 2),
       };
-      updatedUser = sanitizeUser(store.users[idx]);
+      updatedUser = sanitizeUser(user);
     }
 
     saveStore(store);

@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Lock, MessageCircle, Search, Star, Volume2, X } from 'lucide-react';
 import {
-  ALL_CARDS,
-  CURRICULUM_MODULES,
+  FULL_DICTIONARY_CARDS,
   getCardExampleSentence,
   type FlashcardItem,
 } from '../data/hangeulData';
@@ -28,13 +27,7 @@ export const DictionaryView: React.FC<DictionaryViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [spotlightCard, setSpotlightCard] = useState<FlashcardItem | null>(null);
 
-  // Include Pro exclusive pack items in the dictionary catalog
-  const combinedCatalog = useMemo(() => {
-    const proExtra = CURRICULUM_MODULES.filter((m) => m.id === 'mod-kdrama-pack' || m.id === 'mod-work-epstopik')
-      .flatMap((m) => m.cards.filter((c) => c.id.startsWith('kd-') || c.id.startsWith('wk-')));
-    return [...ALL_CARDS, ...proExtra];
-  }, []);
-
+  const combinedCatalog = FULL_DICTIONARY_CARDS;
   const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
 
   const categories = useMemo(() => {

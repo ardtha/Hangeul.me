@@ -1,22 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft,
-  ArrowRight,
-  Flame,
   Grid2X2,
   Layers,
   MessageSquareText,
   PenTool,
   Puzzle,
-  RotateCcw,
   Sparkles,
   Star,
-  Timer,
-  Volume2,
 } from 'lucide-react';
 import {
   ALL_CARDS,
   CURRICULUM_MODULES,
+  FULL_DICTIONARY_CARDS,
   LETTER_CARDS,
   WORD_CARDS,
   extractWritingGlyphsFromText,
@@ -25,16 +20,17 @@ import {
 } from '../data/hangeulData';
 import {
   applySwipeAnswer,
-  calculateMultiplier,
   recycleWeakCard,
+  shuffleArray,
   type SwipeSessionState,
 } from '../lib/gameRules';
-import { canSpeakKorean, speakKorean } from '../lib/speech';
-import { AnimatedStrokeGuide } from './exercises/AnimatedStrokeGuide';
+import { ChallengeSummaryModal, type ChallengeSummary } from './exercises/ChallengeSummaryModal';
 import { MatchPairsDrill } from './exercises/MatchPairsDrill';
 import { ParticleFillDrill } from './exercises/ParticleFillDrill';
 import { QuizDrill } from './exercises/QuizDrill';
 import { SentenceScrambleDrill } from './exercises/SentenceScrambleDrill';
+import { SessionStatsSidebar } from './exercises/SessionStatsSidebar';
+import { SwipeCardDrill } from './exercises/SwipeCardDrill';
 import { SyllableBuilderDrill } from './exercises/SyllableBuilderDrill';
 import { WritingCanvasDrill } from './exercises/WritingCanvasDrill';
 import type { PaywallReason } from './PaywallModal';
@@ -130,15 +126,6 @@ const STUDIO_TABS: Array<{
   },
 ];
 
-function shuffleCards(list: FlashcardItem[]): FlashcardItem[] {
-  const copy = [...list];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
-
 export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
   activeModule,
   initialPracticeMode = 'quiz',
@@ -152,20 +139,14 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
 }) => {
   const [practiceTab, setPracticeTab] = useState<PracticeStudioTab>(initialPracticeMode);
   const [writingTarget, setWritingTarget] = useState<{ char: string; nonce: number } | null>(null);
-  const [quizActiveText, setQuizActiveText] = useState<string>('');
+  const [quizActiveText, setQuizActiveText] = useState('');
   const [arenaMode, setArenaMode] = useState<ArenaMode>(activeModule ? 'module' : 'letters');
   const [selectedModuleId, setSelectedModuleId] = useState<string>(
     activeModule?.id ?? CURRICULUM_MODULES[0].id
   );
   const [challengeActive, setChallengeActive] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60);
-  const [challengeSummary, setChallengeSummary] = useState<{
-    score: number;
-    right: number;
-    total: number;
-    runBest: number;
-    isNewRecord: boolean;
-  } | null>(null);
+  const [challengeSummary, setChallengeSummary] = useState<ChallengeSummary | null>(null);
 
   const [session, setSession] = useState<SwipeSessionState>({
     score: 0,
@@ -179,9 +160,7 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
   });
 
   useEffect(() => {
-    if (initialPracticeMode) {
-      setPracticeTab(initialPracticeMode);
-    }
+    setPracticeTab(initialPracticeMode);
   }, [initialPracticeMode]);
 
   useEffect(() => {
@@ -200,16 +179,10 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
     [selectedModuleId]
   );
 
-  const fullCatalog = useMemo(() => {
-    const proExtra = CURRICULUM_MODULES.filter((m) => m.id === 'mod-kdrama-pack' || m.id === 'mod-work-epstopik')
-      .flatMap((m) => m.cards.filter((c) => c.id.startsWith('kd-') || c.id.startsWith('wk-')));
-    return [...ALL_CARDS, ...proExtra];
-  }, []);
-
   const favoriteCards = useMemo(() => {
     const favSet = new Set(favorites);
-    return fullCatalog.filter((c) => favSet.has(c.id));
-  }, [fullCatalog, favorites]);
+    return FULL_DICTIONARY_CARDS.filter((c) => favSet.has(c.id));
+  }, [favorites]);
 
   const deckPool = useMemo(() => {
     if (challengeActive) return [...LETTER_CARDS, ...WORD_CARDS];
@@ -226,8 +199,12 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
     return ALL_CARDS;
   }, [arenaMode, challengeActive, currentModule, weakCards, favoriteCards]);
 
-  const [queue, setQueue] = useState<FlashcardItem[]>(() => shuffleCards(deckPool));
+  const [queue, setQueue] = useState<FlashcardItem[]>(() => shuffleArray(deckPool));
   const [currentCard, setCurrentCard] = useState<FlashcardItem>(() => deckPool[0] ?? ALL_CARDS[0]);
+  const [leftIsCorrect, setLeftIsCorrect] = useState(() => Math.random() < 0.5);
+  const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [dragX, setDragX] = useState(0);
 
   const activeLearnText =
     practiceTab === 'quiz' && quizActiveText
@@ -243,21 +220,11 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
     setWritingTarget((prev) => ({ char, nonce: (prev?.nonce ?? 0) + 1 }));
     setPracticeTab('writing');
   }, []);
-  const [leftIsCorrect, setLeftIsCorrect] = useState(() => Math.random() < 0.5);
-  const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [dragX, setDragX] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const startXRef = useRef(0);
 
   const drawNext = useCallback((sourceQueue: FlashcardItem[], fallbackPool: FlashcardItem[]) => {
-    let working = sourceQueue;
-    if (working.length === 0) {
-      working = shuffleCards(fallbackPool);
-    }
+    const working = sourceQueue.length > 0 ? sourceQueue : shuffleArray(fallbackPool);
     const next = working[working.length - 1];
-    const remaining = working.slice(0, -1);
-    setQueue(remaining);
+    setQueue(working.slice(0, -1));
     setCurrentCard(next);
     setLeftIsCorrect(Math.random() < 0.5);
     setDragX(0);
@@ -265,14 +232,14 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
   }, []);
 
   useEffect(() => {
-    const shuffled = shuffleCards(deckPool);
+    const shuffled = shuffleArray(deckPool);
     setQueue(shuffled.slice(0, -1));
     setCurrentCard(shuffled[shuffled.length - 1] ?? ALL_CARDS[0]);
     setLeftIsCorrect(Math.random() < 0.5);
     setFeedback(null);
     setDragX(0);
     setBusy(false);
-  }, [arenaMode, selectedModuleId, challengeActive, favorites.length]);
+  }, [arenaMode, selectedModuleId, challengeActive, favorites.length, deckPool]);
 
   useEffect(() => {
     if (!challengeActive) return;
@@ -306,25 +273,18 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
     }
   }, [challengeActive, timeLeft, session, bestChallenge, onProgressUpdate]);
 
-  const handleAnswer = useCallback(
+  const handleSwipeAnswer = useCallback(
     (swipedLeft: boolean) => {
       if (busy || !currentCard) return;
 
       setBusy(true);
       const outcome = applySwipeAnswer(session, currentCard, swipedLeft, leftIsCorrect);
       setSession(outcome.nextState);
-
-      if (outcome.isCorrect) {
-        setFeedback({
-          ok: true,
-          text: `Benar (+${outcome.pointsEarned} XP): ${currentCard.c} · ${currentCard.m}`,
-        });
-      } else {
-        setFeedback({
-          ok: false,
-          text: `Jawaban tepat: ${currentCard.c} · ${currentCard.m}`,
-        });
-      }
+      setFeedback(
+        outcome.isCorrect
+          ? { ok: true, text: `Benar (+${outcome.pointsEarned} XP): ${currentCard.c} · ${currentCard.m}` }
+          : { ok: false, text: `Jawaban tepat: ${currentCard.c} · ${currentCard.m}` }
+      );
 
       onProgressUpdate({
         xpDelta: outcome.pointsEarned,
@@ -343,39 +303,8 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
         drawNext(nextQueue, deckPool);
       }, 240);
     },
-    [
-      busy,
-      currentCard,
-      session,
-      arenaMode,
-      leftIsCorrect,
-      onProgressUpdate,
-      currentModule,
-      queue,
-      drawNext,
-      deckPool,
-    ]
+    [busy, currentCard, session, arenaMode, leftIsCorrect, onProgressUpdate, currentModule, queue, drawNext, deckPool]
   );
-
-  useEffect(() => {
-    if (practiceTab !== 'swipe') return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return;
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        handleAnswer(true);
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        handleAnswer(false);
-      } else if (e.key === ' ') {
-        e.preventDefault();
-        speakKorean(currentCard.h);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [practiceTab, handleAnswer, currentCard]);
 
   const startChallenge = () => {
     setPracticeTab('swipe');
@@ -397,41 +326,60 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
     setTimeLeft(60);
   };
 
-  const handleQuizCorrect = (card: FlashcardItem, xpEarned: number) => {
-    const nextWeak = { ...weakCards };
-    if (nextWeak[card.h]) {
-      if (nextWeak[card.h] <= 1) delete nextWeak[card.h];
-      else nextWeak[card.h] -= 1;
+  const recordDrillSuccess = (
+    xpEarned: number,
+    options?: {
+      incrementAnswered?: boolean;
+      incrementStreak?: boolean;
+      questBuilderDelta?: number;
+      questPairDelta?: number;
+      weakCardsPatch?: Record<string, number>;
+      includeModuleDelta?: boolean;
     }
-    const nextStreak = session.streak + 1;
+  ) => {
+    const nextStreak = options?.incrementStreak === false ? session.streak : session.streak + 1;
     setSession((prev) => ({
       ...prev,
       score: prev.score + xpEarned,
       streak: nextStreak,
       bestStreak: Math.max(prev.bestStreak, nextStreak),
       correctCount: prev.correctCount + 1,
-      totalAnswered: prev.totalAnswered + 1,
+      totalAnswered:
+        options?.incrementAnswered === false ? prev.totalAnswered : prev.totalAnswered + 1,
     }));
     onProgressUpdate({
       xpDelta: xpEarned,
-      bestStreak: nextStreak,
-      weakCards: nextWeak,
-      moduleId: arenaMode === 'module' ? currentModule.id : undefined,
-      moduleCorrectDelta: 1,
-      moduleTotalCards: arenaMode === 'module' ? currentModule.cards.length : undefined,
+      bestStreak: options?.incrementStreak === false ? undefined : nextStreak,
+      weakCards: options?.weakCardsPatch,
+      moduleId: options?.includeModuleDelta && arenaMode === 'module' ? currentModule.id : undefined,
+      moduleCorrectDelta: options?.includeModuleDelta ? 1 : undefined,
+      moduleTotalCards:
+        options?.includeModuleDelta && arenaMode === 'module'
+          ? currentModule.cards.length
+          : undefined,
       questCorrectDelta: 1,
+      questBuilderDelta: options?.questBuilderDelta,
+      questPairDelta: options?.questPairDelta,
     });
   };
 
+  const handleQuizCorrect = (card: FlashcardItem, xpEarned: number) => {
+    const nextWeak = { ...weakCards };
+    if (nextWeak[card.h]) {
+      if (nextWeak[card.h] <= 1) delete nextWeak[card.h];
+      else nextWeak[card.h] -= 1;
+    }
+    recordDrillSuccess(xpEarned, { weakCardsPatch: nextWeak, includeModuleDelta: true });
+  };
+
   const handleQuizWrong = (card: FlashcardItem) => {
-    const nextWeak = { ...weakCards, [card.h]: 2 };
     setSession((prev) => ({
       ...prev,
       streak: 0,
       totalAnswered: prev.totalAnswered + 1,
     }));
     onProgressUpdate({
-      weakCards: nextWeak,
+      weakCards: { ...weakCards, [card.h]: 2 },
     });
   };
 
@@ -439,7 +387,6 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
   const rightText = leftIsCorrect ? currentCard.w : currentCard.c;
   const isWeak = Boolean(weakCards[currentCard.h]);
   const weakCount = Object.keys(weakCards).length;
-  const multiplier = calculateMultiplier(session.streak);
 
   return (
     <div className="space-y-6">
@@ -487,14 +434,12 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
           </div>
         </div>
 
-        {/* Empty Favorites Helpful Hint */}
         {arenaMode === 'favorites' && favoriteCards.length === 0 && (
           <div className="rounded-2xl bg-amber-50/75 dark:bg-amber-950/35 backdrop-blur-md border border-amber-200/80 dark:border-amber-800 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
             Daftar Favorit Anda masih kosong. Sementara kami menampilkan 16 kosakata dasar pilihan—ketuk ikon ★ di menu <strong>Kamus</strong> untuk menyusun dek pribadi Anda.
           </div>
         )}
 
-        {/* 7 Mode Selector Tabs */}
         <div
           role="tablist"
           aria-label="Pilih jenis latihan"
@@ -533,7 +478,6 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
           })}
         </div>
 
-        {/* Module picker row when Per Modul active */}
         {arenaMode === 'module' &&
           !challengeActive &&
           (practiceTab === 'quiz' || practiceTab === 'match' || practiceTab === 'swipe') && (
@@ -580,72 +524,29 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
           {practiceTab === 'writing' && (
             <WritingCanvasDrill
               targetChar={writingTarget}
-              onWritingCompleted={(_glyph, xpEarned) => {
-                const nextStreak = session.streak + 1;
-                setSession((prev) => ({
-                  ...prev,
-                  score: prev.score + xpEarned,
-                  streak: nextStreak,
-                  bestStreak: Math.max(prev.bestStreak, nextStreak),
-                  correctCount: prev.correctCount + 1,
-                  totalAnswered: prev.totalAnswered + 1,
-                }));
-                onProgressUpdate({
-                  xpDelta: xpEarned,
-                  bestStreak: nextStreak,
-                  questCorrectDelta: 1,
-                });
-              }}
+              onWritingCompleted={(_glyph, xpEarned) => recordDrillSuccess(xpEarned)}
             />
           )}
 
           {practiceTab === 'builder' && (
             <SyllableBuilderDrill
-              onPuzzleSolved={(_char, xpEarned) => {
-                const nextStreak = session.streak + 1;
-                setSession((prev) => ({
-                  ...prev,
-                  score: prev.score + xpEarned,
-                  streak: nextStreak,
-                  bestStreak: Math.max(prev.bestStreak, nextStreak),
-                }));
-                onProgressUpdate({
-                  xpDelta: xpEarned,
-                  bestStreak: nextStreak,
-                  questCorrectDelta: 1,
-                  questBuilderDelta: 1,
-                });
-              }}
+              onPuzzleSolved={(_char, xpEarned) =>
+                recordDrillSuccess(xpEarned, { incrementAnswered: false, questBuilderDelta: 1 })
+              }
             />
           )}
 
           {practiceTab === 'particle' && (
             <ParticleFillDrill
               isPro={isPro}
-              onSolved={(_puzzle, xpEarned) => {
-                const nextStreak = session.streak + 1;
-                setSession((prev) => ({
-                  ...prev,
-                  score: prev.score + xpEarned,
-                  streak: nextStreak,
-                  bestStreak: Math.max(prev.bestStreak, nextStreak),
-                  correctCount: prev.correctCount + 1,
-                  totalAnswered: prev.totalAnswered + 1,
-                }));
-                onProgressUpdate({
-                  xpDelta: xpEarned,
-                  bestStreak: nextStreak,
-                  questCorrectDelta: 1,
-                  questBuilderDelta: 1,
-                });
-              }}
-              onWrong={() => {
+              onSolved={(_puzzle, xpEarned) => recordDrillSuccess(xpEarned, { questBuilderDelta: 1 })}
+              onWrong={() =>
                 setSession((prev) => ({
                   ...prev,
                   streak: 0,
                   totalAnswered: prev.totalAnswered + 1,
-                }));
-              }}
+                }))
+              }
               onTriggerPaywall={onTriggerPaywall}
             />
           )}
@@ -653,297 +554,64 @@ export const SwipeArenaView: React.FC<SwipeArenaViewProps> = ({
           {practiceTab === 'match' && (
             <MatchPairsDrill
               deckPool={deckPool}
-              onRoundComplete={(_mistakes, xpEarned) => {
-                setSession((prev) => ({
-                  ...prev,
-                  score: prev.score + xpEarned,
-                  correctCount: prev.correctCount + 1,
-                }));
-                onProgressUpdate({
-                  xpDelta: xpEarned,
-                  questCorrectDelta: 1,
+              onRoundComplete={(_mistakes, xpEarned) =>
+                recordDrillSuccess(xpEarned, {
+                  incrementAnswered: false,
+                  incrementStreak: false,
                   questPairDelta: 1,
-                });
-              }}
+                })
+              }
             />
           )}
 
           {practiceTab === 'sentence' && (
             <SentenceScrambleDrill
               isPro={isPro}
-              onSentenceSolved={(xpEarned) => {
-                const nextStreak = session.streak + 1;
-                setSession((prev) => ({
-                  ...prev,
-                  score: prev.score + xpEarned,
-                  streak: nextStreak,
-                  bestStreak: Math.max(prev.bestStreak, nextStreak),
-                }));
-                onProgressUpdate({
-                  xpDelta: xpEarned,
-                  bestStreak: nextStreak,
-                  questCorrectDelta: 1,
-                  questBuilderDelta: 1,
-                });
-              }}
-              onWrongSentence={() => {
-                setSession((prev) => ({ ...prev, streak: 0 }));
-              }}
+              onSentenceSolved={(xpEarned) =>
+                recordDrillSuccess(xpEarned, { incrementAnswered: false, questBuilderDelta: 1 })
+              }
+              onWrongSentence={() => setSession((prev) => ({ ...prev, streak: 0 }))}
               onTriggerPaywall={onTriggerPaywall}
             />
           )}
 
           {practiceTab === 'swipe' && (
-            <div className="ios-card bg-white/62 dark:bg-slate-900/52 border border-white/75 dark:border-white/12 rounded-[28px] p-6 sm:p-8 flex flex-col items-center">
-              <div className="w-full flex flex-wrap items-center justify-between gap-3 mb-5">
-                <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
-                  Arena Kartu Geser &amp; Tantangan 60 Detik
-                </span>
-                <button
-                  type="button"
-                  onClick={challengeActive ? stopChallenge : startChallenge}
-                  className={`btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border-b-4 text-xs font-bold transition-colors whitespace-nowrap shrink-0 ${
-                    challengeActive
-                      ? 'bg-rose-600 border-rose-800 text-white hover:bg-rose-500'
-                      : 'bg-sky-600 border-sky-800 text-white hover:bg-sky-500'
-                  }`}
-                >
-                  <Timer className="w-3.5 h-3.5" />
-                  <span>{challengeActive ? `Berhenti (${timeLeft}d)` : 'Tantangan 60 Detik'}</span>
-                </button>
-              </div>
-
-              {/* Top Options */}
-              <div className="w-full max-w-md grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => handleAnswer(true)}
-                  className="btn-tactile flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-rose-600 hover:bg-rose-500 border-b-4 border-rose-800 disabled:opacity-50 text-white font-display font-bold text-sm sm:text-base"
-                >
-                  <ArrowLeft className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{leftText}</span>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => handleAnswer(false)}
-                  className="btn-tactile flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-sky-600 hover:bg-sky-500 border-b-4 border-sky-800 disabled:opacity-50 text-white font-display font-bold text-sm sm:text-base"
-                >
-                  <span className="truncate">{rightText}</span>
-                  <ArrowRight className="w-4 h-4 shrink-0" />
-                </button>
-              </div>
-
-              {/* Draggable Card */}
-              <div className="relative w-full max-w-xs h-72 sm:h-80 my-6 flex items-center justify-center">
-                <div
-                  data-testid="active-flashcard"
-                  onPointerDown={(e) => {
-                    if (busy) return;
-                    setIsDragging(true);
-                    startXRef.current = e.clientX;
-                    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-                  }}
-                  onPointerMove={(e) => {
-                    if (!isDragging || busy) return;
-                    setDragX(e.clientX - startXRef.current);
-                  }}
-                  onPointerUp={() => {
-                    if (!isDragging) return;
-                    setIsDragging(false);
-                    if (dragX < -75) {
-                      handleAnswer(true);
-                    } else if (dragX > 75) {
-                      handleAnswer(false);
-                    } else {
-                      setDragX(0);
-                    }
-                  }}
-                  onPointerCancel={() => {
-                    setIsDragging(false);
-                    setDragX(0);
-                  }}
-                  style={{
-                    transform: `translateX(${dragX}px) rotate(${dragX * 0.06}deg)`,
-                    transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.16, 1, 0.3, 1)',
-                  }}
-                  className={`w-full h-full rounded-3xl select-none cursor-grab active:cursor-grabbing bg-white/72 dark:bg-white/[0.08] backdrop-blur-xl border-2 border-b-4 p-6 flex flex-col items-center justify-center text-center touch-none shadow-lg ${
-                    dragX < -30
-                      ? 'border-rose-500'
-                      : dragX > 30
-                      ? 'border-sky-600'
-                      : isWeak
-                      ? 'border-amber-500 dark:border-amber-400'
-                      : 'border-white/80 dark:border-white/15'
-                  }`}
-                >
-                  <span className="text-xs font-semibold text-sky-700 dark:text-sky-400">
-                    {currentCard.type}
-                    {isWeak ? ' · Kartu Lemah' : ''}
-                  </span>
-
-                  <div
-                    className={`my-4 font-display font-extrabold text-slate-900 dark:text-white tracking-tight ${
-                      currentCard.h.length > 3
-                        ? 'text-4xl'
-                        : currentCard.h.length > 1
-                        ? 'text-5xl'
-                        : 'text-7xl'
-                    }`}
-                  >
-                    {currentCard.h}
-                  </div>
-
-                  {canSpeakKorean() && (
-                    <button
-                      type="button"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={() => speakKorean(currentCard.h)}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    >
-                      <Volume2 className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-                      <span>Dengar (Spasi)</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="min-h-[36px] flex items-center justify-center">
-                {feedback && (
-                  <p
-                    role="status"
-                    className={`text-sm font-semibold text-center ${
-                      feedback.ok
-                        ? 'text-emerald-700 dark:text-emerald-400'
-                        : 'text-rose-600 dark:text-rose-400'
-                    }`}
-                  >
-                    {feedback.text}
-                  </p>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                ← Geser kartu ke kiri/kanan atau gunakan panah keyboard →
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Right Telemetry & Cheerful Coach Sidebar */}
-        <aside className="lg:col-span-4 space-y-5">
-          <div className="ios-card rounded-[28px] bg-white/62 dark:bg-slate-900/52 border border-white/75 dark:border-white/12 p-6 space-y-4">
-            <h2 className="font-display text-base font-extrabold text-slate-900 dark:text-white">
-              Statistik Sesi Latihan
-            </h2>
-
-            <div className="grid grid-cols-2 gap-3.5 pt-2 border-t border-white/60 dark:border-white/10 tabular-nums">
-              <div className="ios-glass-well rounded-2xl bg-white/55 dark:bg-white/[0.06] border border-white/65 dark:border-white/10 p-3.5">
-                <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Skor Sesi</div>
-                <div className="mt-0.5 font-display text-2xl font-extrabold text-slate-900 dark:text-white">
-                  {session.score}
-                </div>
-              </div>
-              <div className="ios-glass-well rounded-2xl bg-white/55 dark:bg-white/[0.06] border border-white/65 dark:border-white/10 p-3.5">
-                <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Combo</div>
-                <div className="mt-0.5 font-display text-2xl font-extrabold text-sky-600 dark:text-sky-400 flex items-center gap-1">
-                  <Flame className="w-5 h-5 text-amber-500" />
-                  <span>
-                    {session.streak} (x{multiplier})
-                  </span>
-                </div>
-              </div>
-              <div className="ios-glass-well rounded-2xl bg-white/55 dark:bg-white/[0.06] border border-white/65 dark:border-white/10 p-3.5">
-                <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Akurasi</div>
-                <div className="mt-0.5 font-display text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
-                  {session.totalAnswered > 0
-                    ? `${Math.round((session.correctCount / session.totalAnswered) * 100)}%`
-                    : '0%'}
-                </div>
-              </div>
-              <div className="ios-glass-well rounded-2xl bg-white/55 dark:bg-white/[0.06] border border-white/65 dark:border-white/10 p-3.5">
-                <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Rekor 60d</div>
-                <div className="mt-0.5 font-display text-xl font-extrabold text-slate-900 dark:text-white">
-                  {bestChallenge}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {practiceTab !== 'writing' && activeStrokeGlyphs.length > 0 && (
-            <AnimatedStrokeGuide
-              glyphs={activeStrokeGlyphs}
-              sourceLabel={activeLearnText}
-              onPracticeChar={handlePracticeChar}
+            <SwipeCardDrill
+              currentCard={currentCard}
+              leftText={leftText}
+              rightText={rightText}
+              isWeak={isWeak}
+              busy={busy}
+              dragX={dragX}
+              setDragX={setDragX}
+              challengeActive={challengeActive}
+              timeLeft={timeLeft}
+              feedback={feedback}
+              onAnswer={handleSwipeAnswer}
+              onStartChallenge={startChallenge}
+              onStopChallenge={stopChallenge}
             />
           )}
+        </div>
 
-          <div className="ios-card rounded-[28px] bg-white/62 dark:bg-slate-900/52 border border-white/75 dark:border-white/12 p-6 space-y-3">
-            <h3 className="font-display text-sm font-extrabold text-slate-900 dark:text-white">
-              Tips Belajar &amp; Kartu Lemah
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Setiap XP yang terkumpul dari <strong>7 mode latihan</strong> langsung masuk ke Misi Harian, menjaga <strong>Streak</strong>, dan mendorong peringkat Anda di Liga Mingguan.
-            </p>
-            {arenaMode === 'weak' ? (
-              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                Mode Fokus Kartu Lemah aktif: selesaikan kartu yang sempat keliru untuk menguasainya kembali.
-              </p>
-            ) : weakCount > 0 ? (
-              <button
-                type="button"
-                onClick={() => setArenaMode('weak')}
-                className="btn-tactile w-full py-2.5 px-3 rounded-2xl bg-emerald-600 border-b-4 border-emerald-800 text-white text-xs font-bold hover:bg-emerald-500 transition-colors"
-              >
-                Latih {weakCount} Kartu Lemah Sekarang
-              </button>
-            ) : null}
-          </div>
-        </aside>
+        <SessionStatsSidebar
+          session={session}
+          bestChallenge={bestChallenge}
+          showStrokeGuide={practiceTab !== 'writing'}
+          strokeGlyphs={activeStrokeGlyphs}
+          activeLearnText={activeLearnText}
+          isWeakMode={arenaMode === 'weak'}
+          weakCount={weakCount}
+          onPracticeChar={handlePracticeChar}
+          onSwitchToWeakMode={() => setArenaMode('weak')}
+        />
       </div>
 
-      {/* Challenge Summary Dialog */}
-      {challengeSummary && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 backdrop-blur-md p-4"
-        >
-          <div className="ios-card w-full max-w-sm rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-white/75 dark:border-white/15 p-6 text-center">
-            <h2 className="font-display text-xl font-extrabold text-slate-900 dark:text-white">
-              {challengeSummary.isNewRecord ? 'Rekor Baru Tercapai!' : 'Tantangan 60 Detik Selesai'}
-            </h2>
-            <div className="mt-3 font-display text-5xl font-extrabold text-sky-600 dark:text-sky-400 tabular-nums">
-              {challengeSummary.score}
-            </div>
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 tabular-nums">
-              Benar {challengeSummary.right} dari {challengeSummary.total} kartu (
-              {challengeSummary.total > 0
-                ? Math.round((challengeSummary.right / challengeSummary.total) * 100)
-                : 0}
-              %) · Combo terbaik: {challengeSummary.runBest}
-            </p>
-            <div className="mt-6 flex gap-3">
-              <button
-                type="button"
-                onClick={startChallenge}
-                className="btn-tactile flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-sky-600 border-b-4 border-sky-800 text-white text-sm font-bold"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>Main Lagi</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setChallengeSummary(null)}
-                className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-200"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ChallengeSummaryModal
+        summary={challengeSummary}
+        onReplay={startChallenge}
+        onClose={() => setChallengeSummary(null)}
+      />
     </div>
   );
 };

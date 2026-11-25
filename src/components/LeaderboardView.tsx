@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Crown, Flame, Medal, RefreshCw, Snowflake, Trophy, UserCheck } from 'lucide-react';
 import {
   buildLeaderboardRows,
@@ -42,7 +42,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -53,11 +53,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchLeaderboard]);
 
   useEffect(() => {
     void loadData();
-  }, [currentUser?.id, localXp]);
+  }, [loadData, currentUser?.id, localXp]);
 
   const rankedRows = useMemo(() => {
     const baseEntries = [...serverEntries];

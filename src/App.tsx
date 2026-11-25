@@ -68,9 +68,11 @@ export default function App() {
 
   const effectiveIsPro = currentUser ? currentUser.isPro : state.isPro;
 
+  const currentUserId = currentUser?.id ?? null;
+
   // Sync learner progress to backend whenever XP, streak, favorites, or mastery updates while signed in
   useEffect(() => {
-    if (!token || !currentUser) return;
+    if (!token || !currentUserId) return;
     const timer = window.setTimeout(() => {
       void syncProgress({
         xp: state.xp,
@@ -85,7 +87,7 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [
     token,
-    currentUser?.id,
+    currentUserId,
     state.xp,
     state.bestStreak,
     state.dailyStreak,
@@ -109,10 +111,8 @@ export default function App() {
   const handleUpgradePro = async (cycle: 'monthly' | 'annual') => {
     if (currentUser) {
       await checkoutPro(cycle, 'QRIS Instan');
-      activatePro(cycle);
-    } else {
-      activatePro(cycle);
     }
+    activatePro(cycle);
   };
 
   const handleLogout = async () => {

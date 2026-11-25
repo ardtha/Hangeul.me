@@ -8,5 +8,4 @@ coverage/
 !.env.example
 .data/
 .hangeul_py_store.json
-
-
+dev-dist/
